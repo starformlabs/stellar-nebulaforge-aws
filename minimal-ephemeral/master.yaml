@@ -1,0 +1,334 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Deploys the stellar/quickstart docker image (ephemeral mode, testnet) in a Public VPC with a single availibility zone.
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, c4.large]
+    ConstraintDescription: Please choose a valid instance type.
+
+  InstanceKeyPair:
+    Description: EC2 key pair used to SSH into the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    MinLength: 1 # Force check for value before deployment
+
+  InstanceHorizonPort:
+    Description: EC2 Instance port for Horizon (access may still be restricted by IP)
+    Type: String
+    Default: 8000
+    AllowedPattern: "[0-9]+"
+    ConstraintDescription: Please choose a numeric value.
+
+  InstancePosrgresPort:
+    Description: EC2 Instance port for Postgress (externall access is blocked. You can connect/proxy via SSH)
+    Type: String
+    Default: 5432
+    AllowedPattern: "[0-9]+"
+    ConstraintDescription: Please choose a numeric value.
+
+  SshIpRange:
+    Description: IP range (CIDR notation) that will be allowed to SSH into the instance. Use https://www.google.com/search?q=ip to find you IP and enter it as x.x.x.x/32.
+    Type: String
+    AllowedPattern: "^([0-9]+\\.){3}[0-9]+/[0-9]{1,2}$"
+    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
+    MinLength: 9
+    Default: 8.8.8.8/32
+
+  HorizonIpRange:
+    Description: IP range (CIDR notation) that will be allowed to access the Horizon. Leave blank to block all external access
+    Type: String
+    AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
+    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Instance"
+        Parameters: [InstanceType, InstanceKeyPair, InstanceHorizonPort, InstancePosrgresPort]
+      - Label:
+          default: "IP Access"
+        Parameters: [SshIpRange, HorizonIpRange]
+
+    ParameterLabels:
+      InstanceType:
+        default: "Instance Type"
+      InstanceKeyPair:
+        default: "Instance Key Pair"
+      InstanceHorizonPort:
+        default: "Horizon Port"
+      InstancePosrgresPort:
+        default: "Postgres Port"
+      SshIpRange:
+        default: "IP Range for SSH Access"
+      HorizonIpRange:
+        default: "IP Range for Horizon Access"
+
+
+Conditions:
+  AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
+
+
+Mappings:
+
+  # Latest ECS optimized AMIs as of Feb 28 2018:
+  # amzn-ami-2017.09.i-amazon-ecs-optimized. ECS agent: 1.17.1, Docker: 17.09.1-ce, ecs-init: 1.17.1-1
+  # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+  AWSRegionToAMI:
+    ap-northeast-1:
+      AMI: ami-68ef940e
+    ap-northeast-2:
+      AMI: ami-a5dd70cb
+    ap-south-1:
+      AMI: ami-2e461a41
+    ap-southeast-1:
+      AMI: ami-0a622c76
+    ap-southeast-2:
+      AMI: ami-ee884f8c
+    ca-central-1:
+      AMI: ami-5ac94e3e
+    eu-central-1:
+      AMI: ami-0799fa68
+    eu-west-1:
+      AMI: ami-0693ed7f
+    eu-west-2:
+      AMI: ami-f4e20693
+    eu-west-3:
+      AMI: ami-698b3d14
+    sa-east-1:
+      AMI: ami-d44008b8
+    us-east-1:
+      AMI: ami-a7a242da
+    us-east-2:
+      AMI: ami-b86a5ddd
+    us-west-1:
+      AMI: ami-9ad4dcfa
+    us-west-2:
+      AMI: ami-92e06fea
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: '10.200.0.0/16'
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      VpcId: !Ref 'VPC'
+      CidrBlock: '10.200.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  GatewayAttachement:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref 'InternetGateway'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachement
+    Properties:
+      RouteTableId: !Ref 'PublicRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+
+  # ECS Resources
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  ECSHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref AWS::StackName
+      GroupDescription: Access to the ECS hosts that run containers
+      VpcId: !Ref 'VPC'
+      SecurityGroupIngress:
+        - CidrIp: !Ref SshIpRange
+          Description: Allow SSH access via a specific IP Range
+          IpProtocol: 'tcp'
+          FromPort: 22
+          ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  # Specify this here instead of above so that we can use the "Condition" key
+  ECSSecurityGroupIngressHorizon:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowHorizonAccess
+    Properties:
+      GroupId: !Ref 'ECSHostSecurityGroup'
+      Description: Allow Horizon access via a specific IP Range
+      CidrIp: !Ref HorizonIpRange
+      IpProtocol: 'tcp'
+      FromPort: !Ref 'InstanceHorizonPort'
+      ToPort: !Ref 'InstanceHorizonPort'
+
+  ECSSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'ECSHostSecurityGroup'
+      Description: Ingress from other hosts in the same security group
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref 'ECSHostSecurityGroup'
+
+
+  # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+      LaunchConfigurationName: !Ref 'ECSLaunchConfiguration'
+      MinSize: 1
+      MaxSize: 1
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+          PropagateAtLaunch: 'true'
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+
+  # We are using this wait handle to capture the IP address of the instance
+  # This workaround is require even though we only have one instance because we are using auto-scaling for restart/reliability
+  # and consistency with other templates. The AutoScalingGroup doesn't allow us to get info on individual instances
+  InstanceIpWaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  InstanceIpWaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: ECSAutoScalingGroup
+    Properties:
+      Handle: !Ref InstanceIpWaitHandle
+      Timeout: 300
+
+  ECSLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    DependsOn: GatewayAttachement # Using AssociatePublicIpAddress requires that we add this dependency explicitly
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
+      SecurityGroups: [!Ref 'ECSHostSecurityGroup']
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      KeyName: !Ref 'InstanceKeyPair'
+      AssociatePublicIpAddress: 'true'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum install -y aws-cfn-bootstrap
+
+          # Update the cluster config with the cluster name and then send a signal to the AutoScalingGroup
+          # to let them know creation complete successfully
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
+          # Get the IP address of the instance and send it to the wait handle
+          # Note, InstanceIpWaitHandle is a CloudFormation reference for the handler url that gets replaced by the !Sub command
+          IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+          /opt/aws/bin/cfn-signal -e $? --data $IP "${InstanceIpWaitHandle}"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
+
+  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts to communciate with the ECS control plane.
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role']
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ['ec2.amazonaws.com']
+          Action: ['sts:AssumeRole']
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref ECSTaskDefinition
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref 'AWS::StackName'
+      ContainerDefinitions:
+        - Name: !Ref AWS::StackName
+          Essential: true
+          Image: stellar/quickstart
+          Command: ["--testnet"]
+          MemoryReservation: 990 #soft limit. Can't be the full 1024 because the instance and agent reserve some memory . About 992 is available by default
+          PortMappings:
+            - ContainerPort: 8000
+              HostPort: !Ref 'InstanceHorizonPort'
+            - ContainerPort: 5432
+              HostPort: !Ref 'InstancePosrgresPort'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref AWS::StackName
+              awslogs-region: !Ref AWS::Region
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref AWS::StackName
+      RetentionInDays: 7
+
+
+Outputs:
+  SshUrl:
+    Description: SSH URL (not always clickable)
+    # Hackish workaround to parse the IP address out of the JSON string returned by InstanceIpWaitCondition.Data
+    # String is in the format {"i-0cae7e6721ce7a5cc":"34.207.113.212"} so we split on the quote mark
+    Value: !Join ['', [ 'ssh://ec2-user@', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']] ] ]
+  HorizonUrl:
+    Condition: AllowHorizonAccess
+    Description: URL to access Horizon
+    Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'InstanceHorizonPort' ] ]
+  LogGroupUrl:
+    Description: Log group for logs that contain the DB password
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${AWS::StackName}'
