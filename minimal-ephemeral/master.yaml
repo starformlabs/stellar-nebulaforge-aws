@@ -228,7 +228,7 @@ Resources:
         WillReplace: 'true'
 
   # We are using this wait handle to capture the IP address of the instance
-  # This workaround is require even though we only have one instance because we are using auto-scaling for restart/reliability
+  # This workaround is required even though we only have one instance because we are using auto-scaling for restart/reliability
   # and consistency with other templates. The AutoScalingGroup doesn't allow us to get info on individual instances
   InstanceIpWaitHandle:
     Type: AWS::CloudFormation::WaitConditionHandle
