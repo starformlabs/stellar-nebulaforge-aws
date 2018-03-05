@@ -4,12 +4,12 @@ This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys t
 docker image running in a non-validating, ephemeral configuration connected to the test network. The deployment uses
 a single VPC subnet in a single availability zone.
 
-Stellar-core, Horizon and Postgres are all running in the same container on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
-is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated but 
+Stellar-core, Horizon and PostgreSQL are all running in the same container on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
+is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated, but 
 there is never more than one instance running at a time.
 
 
-### Billable Resources
+### Cost
 The template creates a number of resources but the majority of them do not attract charges. You *will* be billed for 
 the following resources:
  - [A single EC2 instance](https://aws.amazon.com/ec2/pricing/on-demand/)
@@ -44,14 +44,14 @@ not listed, just copy one of the URLs and edit the region accordingly.
 
 ### Template
 The template URL is a part of the launch link, so will be auto-selected by default. You don't need to change anything
-on this screen.[Click here to view the template](https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
+on this screen. [Click here to view the template](https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
 directly, it never hurts to double check what you are deploying to your account!
 
 ![template selection screen](images/select-template.png)
 
 
 ### Set Parameters
-Most of the default parameters can be left as is, however you must specify
+Most of the default parameters can be left as is, however you must specify:
 - An SSH Key Pair to be associated with the instance (choose from the dropdown).
 - An IP address range that is allowed to SSH into the instance in [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing)
 format.
@@ -83,26 +83,28 @@ It will take about 5 minutes for everything to be deloyed. You will see the reso
 ### Create Complete
 
 Once the deployment is done the status will be CREATE_COMPLETE. Switch to the **Outputs** tab to see the relevant URLs
-- The SSH URL shows the IP address of the server and the username. Authentication is done using the key pair specified
+- The SSH URL shows the IP of the server and the username. Authentication is done using the key pair specified
 earlier.
-- The Horizon URL is a link directly to the Horizon API.
-- The Log Group URL is how you find the password that you can use to login to Postgres.
+- The Horizon URL is a direct link to the Horizon API.
+- The Log Group URL will be used to find the PostgreSQL password.
 
 ![output URLs](images/create-complete-output.png)
 
-### Finding the Postgres password
+### Finding the PostgreSQL password
 
-When you click on the Log Group URL you will be take to a screen showing a randomly named log file, click on it.
+When you click on the Log Group URL you will be taken to a screen showing a randomly named log file, click on it.
 
 ![log group](images/log-group.png)
 
-From there you will see the log details including the Postgres password
+From there you will see the log details including the PostgreSQL password
 
 ![log details](images/log-details.png)
 
 ### Final Notes
 
-1. The Postgres port is not exposed to the internet. You must SSH into the server (or tunnel over SSH) to access the database.
+1. Horizon is only accessible over HTTP, not HTTPS.
+
+1. The PostgreSQL port is not exposed to the internet. You must SSH into the server (or tunnel over SSH) to access the database.
 
 1. The IP address output at the end is static, if the instance gets replaced for some reason you will need go to the 
 [EC2 Console](https://console.aws.amazon.com/ec2/v2/home#Instances:sort=instanceId) to find the new address.
