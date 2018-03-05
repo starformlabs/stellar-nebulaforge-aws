@@ -271,7 +271,7 @@ Resources:
       Path: /
       Roles: [!Ref 'EC2Role']
 
-  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts to communciate with the ECS control plane.
+  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts to communicate with the ECS control plane.
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
