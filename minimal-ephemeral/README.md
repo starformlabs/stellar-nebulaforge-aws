@@ -16,7 +16,7 @@ or upload an existing one.
 
 
 ## Launch
-Click the links below to launch this configuration in the AWS region of your choice. If your desired region is
+Click the links below to launch this stack in the AWS region of your choice. If your desired region is
 not listed, just copy one of the URLs and edit the region accordingly.
 
 | AWS Region | Short name | | 
@@ -40,6 +40,7 @@ Any potential charges for data transfer will likely minimal or covered by the fr
 **Disclaimer:** While we attempt to provide useful and up to date information, you are responsible for your own AWS 
 account and the resources that you are charged for. Always be vigilant about doubling checking to ensure that the 
 resources used are what your expect.
+<br />
 <br />
 
 ## Template
