@@ -49,7 +49,6 @@ directly, it never hurts to double check what you are deploying to your account!
 
 ![template selection screen](images/select-template.png)
 <br />
-<br />
 
 ## Set Parameters
 Most of the default parameters can be left as is, however you must specify:
