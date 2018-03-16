@@ -1,0 +1,9 @@
+[submodule "docker-images/stellar-core"]
+	path = docker-images/stellar-core
+	url = https://github.com/starformlabs/docker-stellar-core.git
+[submodule "docker-images/stellar-horizon"]
+	path = docker-images/stellar-horizon
+	url = https://github.com/starformlabs/docker-stellar-horizon.git
+[submodule "docker-images/stellar-postgres"]
+	path = docker-images/stellar-postgres
+	url = https://github.com/starformlabs/docker-stellar-postgres.git
