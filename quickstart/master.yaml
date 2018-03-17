@@ -302,13 +302,13 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref AWS::StackName
+              awslogs-group: !Ref 'CloudWatchLogsGroup'
               awslogs-region: !Ref AWS::Region
 
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Ref AWS::StackName
+      LogGroupName: !Sub '/stellar/${AWS::StackName}'
       RetentionInDays: 7
 
 
@@ -322,6 +322,5 @@ Outputs:
     Condition: AllowHorizonAccess
     Description: URL to access Horizon
     Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'HorizonPort' ] ]
-  LogGroupUrl:
-    Description: Log group for logs that contain the DB password
-    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${AWS::StackName}'
+  LogGroup:
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
