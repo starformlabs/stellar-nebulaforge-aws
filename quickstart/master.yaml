@@ -104,7 +104,7 @@ Mappings:
       DbPort: 5432
 
 Resources:
-  VPC:
+  Vpc:
     Type: AWS::EC2::VPC
     Properties:
       EnableDnsSupport: true
@@ -118,7 +118,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref 'Vpc'
       CidrBlock: '10.200.0.0/24'
       MapPublicIpOnLaunch: true
       Tags:
@@ -135,13 +135,13 @@ Resources:
   GatewayAttachement:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref 'Vpc'
       InternetGatewayId: !Ref 'InternetGateway'
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref 'Vpc'
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -167,7 +167,7 @@ Resources:
     Properties:
       GroupName: !Ref AWS::StackName
       GroupDescription: Access to the Ecs hosts that run containers
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref 'Vpc'
       SecurityGroupIngress:
         - CidrIp: !Ref SshIpRange
           Description: Allow SSH access via a specific IP Range
