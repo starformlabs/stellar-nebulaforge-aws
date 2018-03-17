@@ -166,14 +166,14 @@ Resources:
 
 
   # ECS Resources
-  ECSCluster:
+  EcsCluster:
     Type: AWS::ECS::Cluster
 
-  ECSHostSecurityGroup:
+  EcsHostSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Ref AWS::StackName
-      GroupDescription: Access to the ECS hosts that run containers
+      GroupDescription: Access to the Ecs hosts that run containers
       VpcId: !Ref 'VPC'
       SecurityGroupIngress:
         - CidrIp: !Ref SshIpRange
@@ -186,33 +186,33 @@ Resources:
           Value: !Ref 'AWS::StackName'
 
   # Specify this here instead of above so that we can use the "Condition" key
-  ECSSecurityGroupIngressHorizon:
+  EcsSecurityGroupIngressHorizon:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: AllowHorizonAccess
     Properties:
-      GroupId: !Ref 'ECSHostSecurityGroup'
+      GroupId: !Ref 'EcsHostSecurityGroup'
       Description: Allow Horizon access via a specific IP Range
       CidrIp: !Ref HorizonIpRange
       IpProtocol: 'tcp'
       FromPort: !Ref 'InstanceHorizonPort'
       ToPort: !Ref 'InstanceHorizonPort'
 
-  ECSSecurityGroupIngressFromSelf:
+  EcsSecurityGroupIngressFromSelf:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      GroupId: !Ref 'ECSHostSecurityGroup'
+      GroupId: !Ref 'EcsHostSecurityGroup'
       Description: Ingress from other hosts in the same security group
       IpProtocol: -1
-      SourceSecurityGroupId: !Ref 'ECSHostSecurityGroup'
+      SourceSecurityGroupId: !Ref 'EcsHostSecurityGroup'
 
 
   # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
-  ECSAutoScalingGroup:
+  EcsAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
         - !Ref PublicSubnet
-      LaunchConfigurationName: !Ref 'ECSLaunchConfiguration'
+      LaunchConfigurationName: !Ref 'EcsLaunchConfiguration'
       MinSize: 1
       MaxSize: 1
       DesiredCapacity: 1
@@ -235,19 +235,19 @@ Resources:
 
   InstanceIpWaitCondition:
     Type: AWS::CloudFormation::WaitCondition
-    DependsOn: ECSAutoScalingGroup
+    DependsOn: EcsAutoScalingGroup
     Properties:
       Handle: !Ref InstanceIpWaitHandle
       Timeout: 300
 
-  ECSLaunchConfiguration:
+  EcsLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     DependsOn: GatewayAttachement # Using AssociatePublicIpAddress requires that we add this dependency explicitly
     Properties:
       ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
-      SecurityGroups: [!Ref 'ECSHostSecurityGroup']
+      SecurityGroups: [!Ref 'EcsHostSecurityGroup']
       InstanceType: !Ref 'InstanceType'
-      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
       AssociatePublicIpAddress: 'true'
       UserData:
@@ -265,14 +265,14 @@ Resources:
           IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
           /opt/aws/bin/cfn-signal -e $? --data $IP "${InstanceIpWaitHandle}"
 
-  EC2InstanceProfile:
+  Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      Roles: [!Ref 'EC2Role']
+      Roles: [!Ref 'Ec2Role']
 
   # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts to communicate with the ECS control plane.
-  EC2Role:
+  Ec2Role:
     Type: AWS::IAM::Role
     Properties:
       Path: /
@@ -284,14 +284,14 @@ Resources:
             Service: ['ec2.amazonaws.com']
           Action: ['sts:AssumeRole']
 
-  ECSService:
+  EcsService:
     Type: AWS::ECS::Service
     Properties:
-      Cluster: !Ref ECSCluster
+      Cluster: !Ref EcsCluster
       DesiredCount: 1
-      TaskDefinition: !Ref ECSTaskDefinition
+      TaskDefinition: !Ref EcsTaskDefinition
 
-  ECSTaskDefinition:
+  EcsTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Ref 'AWS::StackName'
