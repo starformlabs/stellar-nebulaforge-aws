@@ -15,11 +15,6 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     MinLength: 1 # Force check for value before deployment
 
-  InstanceHorizonPort:
-    Description: EC2 Instance port for Horizon (access may still be restricted by IP)
-    Type: Number
-    Default: 8000
-
   SshIpRange:
     Description: IP range (CIDR notation) that will be allowed to SSH into the instance. Use https://www.google.com/search?q=ip to find you IP and enter it as x.x.x.x/32.
     Type: String
@@ -34,28 +29,33 @@ Parameters:
     AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
     ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
 
+  HorizonPort:
+    Description: EC2 Instance port for Horizon (access may still be restricted by IP)
+    Type: Number
+    Default: 8000
+
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
           default: "Instance"
-        Parameters: [InstanceType, InstanceKeyPair, InstanceHorizonPort]
+        Parameters: [InstanceType, InstanceKeyPair]
       - Label:
-          default: "IP Access"
-        Parameters: [SshIpRange, HorizonIpRange]
+          default: "Access"
+        Parameters: [SshIpRange, HorizonIpRange, HorizonPort]
 
     ParameterLabels:
       InstanceType:
         default: "Instance Type"
       InstanceKeyPair:
         default: "Instance Key Pair"
-      InstanceHorizonPort:
-        default: "Horizon Port"
       SshIpRange:
         default: "IP Range for SSH Access"
       HorizonIpRange:
         default: "IP Range for Horizon Access"
+      HorizonPort:
+        default: "Horizon Port"
 
 
 Conditions:
@@ -187,8 +187,8 @@ Resources:
       Description: Allow Horizon access via a specific IP Range
       CidrIp: !Ref HorizonIpRange
       IpProtocol: 'tcp'
-      FromPort: !Ref 'InstanceHorizonPort'
-      ToPort: !Ref 'InstanceHorizonPort'
+      FromPort: !Ref 'HorizonPort'
+      ToPort: !Ref 'HorizonPort'
 
   EcsSecurityGroupIngressFromSelf:
     Type: AWS::EC2::SecurityGroupIngress
@@ -296,7 +296,7 @@ Resources:
           MemoryReservation: 990 #soft limit. Can't be the full 1024 because the instance and agent reserve some memory . About 992 is available by default
           PortMappings:
             - ContainerPort: 8000
-              HostPort: !Ref 'InstanceHorizonPort'
+              HostPort: !Ref 'HorizonPort'
             - ContainerPort: !FindInMap [CustomParamsMap, get, DbPort]
               HostPort: !FindInMap [CustomParamsMap, get, DbPort]
           LogConfiguration:
@@ -321,7 +321,7 @@ Outputs:
   HorizonUrl:
     Condition: AllowHorizonAccess
     Description: URL to access Horizon
-    Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'InstanceHorizonPort' ] ]
+    Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'HorizonPort' ] ]
   LogGroupUrl:
     Description: Log group for logs that contain the DB password
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${AWS::StackName}'
