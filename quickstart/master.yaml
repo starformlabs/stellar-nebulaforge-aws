@@ -324,3 +324,7 @@ Outputs:
     Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'HorizonPort' ] ]
   LogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
+  AutoScalingGroup:
+      Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
+  ECS:
+      Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
