@@ -20,11 +20,6 @@ Parameters:
     Type: Number
     Default: 8000
 
-  InstancePosrgresPort:
-    Description: EC2 Instance port for Postgress (externall access is blocked. You can connect/proxy via SSH)
-    Type: Number
-    Default: 5432
-
   SshIpRange:
     Description: IP range (CIDR notation) that will be allowed to SSH into the instance. Use https://www.google.com/search?q=ip to find you IP and enter it as x.x.x.x/32.
     Type: String
@@ -45,7 +40,7 @@ Metadata:
     ParameterGroups:
       - Label:
           default: "Instance"
-        Parameters: [InstanceType, InstanceKeyPair, InstanceHorizonPort, InstancePosrgresPort]
+        Parameters: [InstanceType, InstanceKeyPair, InstanceHorizonPort]
       - Label:
           default: "IP Access"
         Parameters: [SshIpRange, HorizonIpRange]
@@ -57,8 +52,6 @@ Metadata:
         default: "Instance Key Pair"
       InstanceHorizonPort:
         default: "Horizon Port"
-      InstancePosrgresPort:
-        default: "Postgres Port"
       SshIpRange:
         default: "IP Range for SSH Access"
       HorizonIpRange:
@@ -105,6 +98,10 @@ Mappings:
       AMI: ami-9ad4dcfa
     us-west-2:
       AMI: ami-92e06fea
+
+  CustomParamsMap:
+    get:
+      DbPort: 5432
 
 Resources:
   VPC:
@@ -300,8 +297,8 @@ Resources:
           PortMappings:
             - ContainerPort: 8000
               HostPort: !Ref 'InstanceHorizonPort'
-            - ContainerPort: 5432
-              HostPort: !Ref 'InstancePosrgresPort'
+            - ContainerPort: !FindInMap [CustomParamsMap, get, DbPort]
+              HostPort: !FindInMap [CustomParamsMap, get, DbPort]
           LogConfiguration:
             LogDriver: awslogs
             Options:
