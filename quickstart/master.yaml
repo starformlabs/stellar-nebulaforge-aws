@@ -17,17 +17,13 @@ Parameters:
 
   InstanceHorizonPort:
     Description: EC2 Instance port for Horizon (access may still be restricted by IP)
-    Type: String
+    Type: Number
     Default: 8000
-    AllowedPattern: "[0-9]+"
-    ConstraintDescription: Please choose a numeric value.
 
   InstancePosrgresPort:
     Description: EC2 Instance port for Postgress (externall access is blocked. You can connect/proxy via SSH)
-    Type: String
+    Type: Number
     Default: 5432
-    AllowedPattern: "[0-9]+"
-    ConstraintDescription: Please choose a numeric value.
 
   SshIpRange:
     Description: IP range (CIDR notation) that will be allowed to SSH into the instance. Use https://www.google.com/search?q=ip to find you IP and enter it as x.x.x.x/32.
