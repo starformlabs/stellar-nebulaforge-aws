@@ -1,4 +1,4 @@
-# NebulaForge minimal-ephemeral
+# NebulaForge quickstart
 
 This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys the [stellar/quickstart](https://github.com/stellar/docker-stellar-core-horizon) 
 docker image running in a non-validating, ephemeral configuration connected to the test network. The deployment uses
