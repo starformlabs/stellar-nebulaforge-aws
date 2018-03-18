@@ -22,14 +22,6 @@ Parameters:
     Default: '9.6'
     AllowedValues: [9.6]
 
-#  PostgresVersion:
-#    Default: 9.6.6
-#    Type: String
-#    ConstraintDescription: DB engine version not supported
-#    AllowedValues:
-#      - 9.6.6
-#      - 10.1
-
   InstanceType:
     Type: String
     Default: t2.micro
@@ -102,36 +94,6 @@ Parameters:
     ConstraintDescription: Password must contain only alphanumeric characters. Should be between 7 and 40 characters long
     NoEcho: true
 
-#  DbInstanceType:
-#    Default: db.t2.small
-#    Type: String
-#    ConstraintDescription: DB instance type not supported
-#    AllowedValues:
-#      - db.t2.small
-#      - db.t2.medium
-#      - db.t2.large
-#      - db.t2.xlarge
-#      - db.t2.2xlarge
-#      - db.m4.large
-#      - db.m4.xlarge
-#      - db.m4.2xlarge
-#      - db.m4.4xlarge
-#      - db.m4.10xlarge
-#      - db.m4.16xlarge
-#      - db.r4.large
-#      - db.r4.xlarge
-#      - db.r4.2xlarge
-#      - db.r4.4xlarge
-#      - db.r4.8xlarge
-#      - db.r4.16xlarge
-#
-#  DbStorage:
-#    Type: Number
-#    Description: Database storage size in gigabytes (GB)
-#    MinValue: 20
-#    ConstraintDescription: Enter a size of at least 20 GB
-#    Default: 20
-
 
 Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
@@ -152,9 +114,6 @@ Metadata:
       - Label:
           default: "Database"
         Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword]
-#      - Label:
-#          default: "Database"
-#        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword, DbInstanceType, DbStorage]
 
     ParameterLabels:
       StellarCoreVersion:
@@ -183,18 +142,12 @@ Metadata:
         default: "Application Username"
       StellarDbUsername:
         default: "Application Password"
-#      DbInstanceType:
-#        default: "Instance Type"
-#      DbStorage:
-#        default: "Storage"
 
 
 Mappings:
   # Latest ECS optimized AMIs as of Feb 28 2018:
   # amzn-ami-2017.09.i-amazon-ecs-optimized. ECS agent: 1.17.1, Docker: 17.09.1-ce, ecs-init: 1.17.1-1
   # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
-
-  # Load Balancer Zone IDs can be found here but they should not change.
   AwsRegionMap:
     ap-northeast-1:
       AMI: ami-bb5f13dd
@@ -266,7 +219,6 @@ Mappings:
       DbPort: 5432
       StellarHttpPort: 11626
       StellarPeerPort: 11625
-#      RdsDbEngine: 'postgres'
 
 
 Resources:
@@ -376,7 +328,6 @@ Resources:
       IpProtocol: -1
       SourceSecurityGroupId: !Ref 'EcsHostSecurityGroup'
 
-
   # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
   EcsAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -436,50 +387,6 @@ Resources:
           Principal:
             Service: ['ec2.amazonaws.com']
           Action: ['sts:AssumeRole']
-
-#  DatabaseSecurityGroup:
-#    Type: AWS::EC2::SecurityGroup
-#    Properties:
-#      GroupDescription: Access to the RDS DB
-#      VpcId: !Ref Vpc
-#      SecurityGroupIngress:
-#        - SourceSecurityGroupId: !Ref EcsHostSecurityGroup
-#          Description: Allow Postgress access from ECS hosts
-#          IpProtocol: 'tcp'
-#          FromPort: !FindInMap [CustomParamsMap, Get, DbPort]
-#          ToPort: !FindInMap [CustomParamsMap, Get, DbPort]
-#      Tags:
-#        - Key: Name
-#          Value: !Ref 'AWS::StackName'
-#
-#  DatabaseSubnetGroup:
-#    Type: AWS::RDS::DBSubnetGroup
-#    Properties:
-#      DBSubnetGroupDescription: Database subnet group
-#      SubnetIds:
-#        - PrivateSubnet
-#      Tags:
-#      - Key: Name
-#        Value: !Ref 'AWS::StackName'
-#
-#  Database:
-#    Type: AWS::RDS::DBInstance
-#    Properties:
-#      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-#      VPCSecurityGroups:
-#        - !Ref DatabaseSecurityGroup
-#      Engine: !FindInMap [CustomParamsMap, Get, RdsDbEngine]
-#      EngineVersion: !Ref PostgresVersion
-#      MasterUsername: !Ref PgDbUsername
-#      MasterUserPassword: !Ref PgDbPassword
-#      DBInstanceClass: !Ref DbInstanceType
-#      AllocatedStorage: !Ref DbStorage
-#      StorageType: gp2
-#      MultiAZ: false
-#      CopyTagsToSnapshot: true
-#      Tags:
-#      - Key: Name
-#        Value: !Ref 'AWS::StackName'
 
   EcsService:
     Type: AWS::ECS::Service
@@ -548,14 +455,6 @@ Resources:
                     port: !FindInMap [CustomParamsMap, Get, DbPort]
                     user: !Ref StellarDbUsername
                     pass: !Ref StellarDbPassword
-#            - Name: DATABASE
-#              Value:
-#                Fn::Sub
-#                  - 'postgresql://dbname=${db} host=${host} user=${user} password=${pass}'
-#                  - - db : !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
-#                    - host: !GetAtt Database.Endpoint.Address
-#                    - user: !Ref StellarDbUsername
-#                    - pass: !Ref StellarDbPassword
             - Name: NETWORK_PASSPHRASE
               Value: !FindInMap [StellarConfigMap, Test, NetworkPassphrase]
             - Name: KNOWN_PEERS
@@ -655,8 +554,6 @@ Resources:
 
 
 Outputs:
-#  Database:
-#    Value: !Sub 'https://console.aws.amazon.com/rds/home?region=${AWS::Region}#dbinstance:id=${Database}'
   LogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
   AutoScalingGroup:
