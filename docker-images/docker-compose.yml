@@ -1,0 +1,73 @@
+version: '3'
+
+# This compose file is used for local testing only, it is not actually used on AWS
+# Data is not persisted
+services:
+  db:
+    image: starformlabs/stellar-postgres:9.6
+    environment:
+      # used by postgres
+      POSTGRES_USER: 'postgres' # Postgres superuser
+      POSTGRES_PASSWORD: 'pgsecretpassword' # Sets the pw for the Postgres superuser
+
+      # used by init.sh
+      STELLAR_DB_USER: 'stellar' # stellar user will be created in init.sh
+      STELLAR_DB_PASSWORD: 'stellarsecretpassword' # pw for the stellar user is set in init.sh
+
+  core:
+    image: starformlabs/stellar-core:9.2.0-546-b0923f15
+    environment:
+      # used by entry.sh
+      DB_USER: 'stellar'
+      DB_PASS: 'stellarsecretpassword'
+      DB_NAME: 'core'
+      DB_HOST: 'db'
+      DB_PORT: '5432'
+      DATA_DIR: '/data'
+
+      # used by stellar-core
+      NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015'
+      KNOWN_PEERS: 'core-testnet1.stellar.org,core-testnet2.stellar.org,core-testnet3.stellar.org'
+      DATABASE: 'postgresql://dbname=core host=db port=5432 user=stellar password=stellarsecretpassword'
+      BUCKET_DIR_PATH: '/data/core/buckets'
+      UNSAFE_QUORUM: 'true'
+      FAILURE_SAFETY: '1'
+      CATCHUP_RECENT: '8640'
+      LOG_FILE_PATH: '' # Sends logs to stdout
+      COMMANDS: 'll?level=error&partition=Overlay' # Reduce chatty logging about connections
+      QUORUM_SET: |
+        [{
+          "threshold_percent": 51,
+          "validators": ["GDKXE2OZMJIPOSLNA6N6F2BVCI3O777I2OOC4BV7VOYUEHYX7RTRYA7Y  sdf1",
+                         "GCUCJTIYXSOXKBSNFGNFWW5MUQ54HKRPGJUTQFJ5RQXZXNOLNXYDHRAP  sdf2",
+                         "GC2V2EFSXN6SQTWVYA5EPJPBWWIMSD2XQNKUOHGEKB535AQE2I6IXV2Z  sdf3"]
+        }]
+      HISTORY: |
+        {
+          "h1": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_001/{0} -o {1}" },
+          "h1": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_002/{0} -o {1}" },
+          "h2": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_003/{0} -o {1}" }
+        }
+
+  horizon:
+    image: starformlabs/stellar-horizon:0.12.2
+    ports:
+      - '8000:8000'
+    environment:
+      # used by entry.sh
+      DB_USER: 'stellar'
+      DB_PASS: 'stellarsecretpassword'
+      DB_NAME: 'horizon'
+      DB_HOST: 'db'
+      DB_PORT: '5432'
+      DATA_DIR: '/data'
+
+      # used by horizon
+      PORT: '8000'
+      DATABASE_URL: 'postgres://stellar:stellarsecretpassword@db:5432/horizon?sslmode=disable'
+      STELLAR_CORE_DATABASE_URL: 'postgres://stellar:stellarsecretpassword@db:5432/core?sslmode=disable'
+      STELLAR_CORE_URL: 'http://core:11626'
+      LOG_LEVEL: 'info'
+      INGEST: 'true'
+      PER_HOUR_RATE_LIMIT: '72000'
+      NETWORK_PASSPHRASE: 'Test SDF Network ; September 2015'
