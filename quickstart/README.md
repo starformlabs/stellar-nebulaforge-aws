@@ -21,12 +21,12 @@ not listed, just copy one of the URLs and edit the region accordingly.
 
 | AWS Region | Short name | | 
 | -- | -- | -- |
-| US East (N. Virginia) | us-east-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
-| US West (Oregon) | us-west-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
-| EU (Ireland) | eu-west-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
-| EU (Frankfurt) | eu-central-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
-| Asia Pacific (Tokyo) | ap-northeast-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
-| Asia Pacific (Mumbai) | ap-south-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=stellar-minimal-ephemeral&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
+| US East (N. Virginia) | us-east-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| US West (Oregon) | us-west-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=us-west-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| EU (Ireland) | eu-west-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| EU (Frankfurt) | eu-central-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| Asia Pacific (Tokyo) | ap-northeast-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| Asia Pacific (Mumbai) | ap-south-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
 
 
 ## Cost
@@ -45,7 +45,7 @@ resources used are what your expect.
 
 ## Template
 The template URL is a part of the launch link, so will be auto-selected by default. You don't need to change anything
-on this screen. [Click here to view the template](https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/minimal-ephemeral/master.yaml)
+on this screen. [Click here to view the template](https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
 directly, it never hurts to double check what you are deploying to your account!
 
 ![template selection screen](images/select-template.png)
