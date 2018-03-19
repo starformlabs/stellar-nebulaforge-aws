@@ -250,8 +250,8 @@ Resources:
 
           # Update the cluster config with the cluster name and then send a signal to the AutoScalingGroup
           # to let them know creation complete successfully
-          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
           # Get the IP address of the instance and send it to the wait handle
           # Note, InstanceIpWaitHandle is a CloudFormation reference for the handler url that gets replaced by the !Sub command
@@ -326,5 +326,5 @@ Outputs:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
-  ECS:
+  Ecs:
       Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
