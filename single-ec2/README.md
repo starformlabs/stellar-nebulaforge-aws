@@ -47,4 +47,12 @@ resources used are what your expect.
 <br />
 <br />
 
+## Create Complete
+
+Once the deployment is done the status will be CREATE_COMPLETE. Switch to the **Outputs** tab to see the relevant URLs
+- The AutoScalingGroup link will take you to a page that has a direct link to the instance. You can use this to 
+find the instance IP.
+- The LogGroup link will take you to a CloudWatch page with separate log streams for core, horizon and postgres.
+- The ECS link will show you information about the state of the cluster.
+
 More documentation to come...
