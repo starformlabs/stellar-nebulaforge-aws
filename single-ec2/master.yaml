@@ -193,9 +193,9 @@ Mappings:
       Commands: 'll?level=error&partition=Overlay' # Reduce chatty logging about connectionsS
       History: |
         {
-          "h1": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_001/{0} -o {1}" },
-          "h1": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_002/{0} -o {1}" },
-          "h2": { "get": "curl -sf http://history.stellar.org/prd/core-testnet/core_testnet_003/{0} -o {1}" }
+          "h1": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_001/{0} -o {1}" },
+          "h2": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_002/{0} -o {1}" },
+          "h3": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_003/{0} -o {1}" }
         }
       QuorumSet: |
         [{
