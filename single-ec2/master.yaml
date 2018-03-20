@@ -7,13 +7,13 @@ Parameters:
   StellarCoreVersion:
     Description: Tag/Version of the docker image to be deployed
     Type: String
-    Default: 'latest'
-    AllowedValues: [latest, 9.2.0-546-b0923f15, 9.2.0rc5-542-ab2811b2]
+    Default: '9.2.0rc6-548-b0923f15'
+    AllowedValues: [latest, 9.2.0rc6-548-b0923f15, 9.2.0rc5-542-ab2811b2]
 
   HorizonVersion:
     Description: Tag/Version of the docker image to be deployed
     Type: String
-    Default: 'latest'
+    Default: '0.12.2'
     AllowedValues: [latest, 0.12.2]
 
   PostgresVersion:
