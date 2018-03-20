@@ -15,7 +15,7 @@ services:
       STELLAR_DB_PASSWORD: 'stellarsecretpassword' # pw for the stellar user is set in init.sh
 
   core:
-    image: starformlabs/stellar-core:9.2.0-546-b0923f15
+    image: starformlabs/stellar-core:9.2.0rc6-548-b0923f15
     environment:
       # used by entry.sh
       DB_USER: 'stellar'
