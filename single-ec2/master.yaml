@@ -140,7 +140,7 @@ Metadata:
         default: "Superuser Password"
       StellarDbUsername:
         default: "Application Username"
-      StellarDbUsername:
+      StellarDbPassword:
         default: "Application Password"
 
 
