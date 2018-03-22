@@ -1,0 +1,651 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Deploys Stellar Core, Horizon and PostgreSQL on a single EC2 server using ECS
+
+Parameters:
+
+  StellarCoreVersion:
+    Description: Tag/Version of the docker image to be deployed
+    Type: String
+    Default: '9.2.0-551-7561c1d5'
+    AllowedValues: [latest, 9.2.0-551-7561c1d5]
+
+  HorizonVersion:
+    Description: Tag/Version of the docker image to be deployed
+    Type: String
+    Default: '0.12.2'
+    AllowedValues: [latest, 0.12.2]
+
+  PostgresVersion:
+    Description: Tag/Version of the docker image to be deployed
+    Type: String
+    Default: '9.6'
+    AllowedValues: [9.6]
+
+  PostgresVersion:
+    Default: 9.6.6
+    Type: String
+    ConstraintDescription: DB engine version not supported
+    AllowedValues:
+      - 9.6.6
+      - 10.1
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, c4.large]
+    ConstraintDescription: Please choose a valid instance type.
+
+  InstanceKeyPair:
+    Description: EC2 key pair used to SSH into the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    MinLength: 1 # Force check for value before deployment
+
+  SshIpRange:
+    Description: IP range (CIDR notation) that will be allowed to SSH into the instance. Use https://www.google.com/search?q=ip to find you IP and enter it as x.x.x.x/32.
+    Type: String
+    AllowedPattern: "^([0-9]+\\.){3}[0-9]+/[0-9]{1,2}$"
+    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
+    MinLength: 9
+    Default: 123.456.789.0/32
+
+  HorizonIpRange:
+    Description: IP range (CIDR notation) that will be allowed to access the Horizon. Leave blank to block all external access
+    Type: String
+    AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
+    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
+
+  HorizonPort:
+    Description: EC2 Instance port for Horizon (access may still be restricted by IP)
+    Type: Number
+    Default: 8000
+
+  PeerPortIpRange:
+    Description: IP range (CIDR notation) that will be allowed to access the Stellar Core peer port. Leave blank to block all external access
+    Type: String
+    AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
+    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
+
+  PgDbUsername:
+    Description: Postgres superuser username. Should be between 6 and 16 characters long. Alphanumeric only.
+    Type: String
+    MinLength: 6
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+    Default: 'postgres'
+
+  PgDbPassword:
+    Description: Postgres superuser password. Alphanumeric characters only. Should be between 7 and 40 characters long
+    Type: String
+    MinLength: 7
+    MaxLength: 40
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters. Should be between 7 and 40 characters long
+    NoEcho: true
+
+  StellarDbUsername:
+    Description: Postgres user that will used by Stellar Core and Horizon. Should be between 6 and 16 characters long. Alphanumeric only.
+    Type: String
+    MinLength: 6
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+    Default: 'stellar'
+
+  StellarDbPassword:
+    Description: Alphanumeric characters only. Should be between 7 and 40 characters long
+    Type: String
+    MinLength: 7
+    MaxLength: 40
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters. Should be between 7 and 40 characters long
+    NoEcho: true
+
+  DbInstanceType:
+    Default: db.t2.small
+    Type: String
+    ConstraintDescription: DB instance type not supported
+    AllowedValues:
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.t2.xlarge
+      - db.t2.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.m4.16xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+
+  DbStorage:
+    Type: Number
+    Description: Database storage size in gigabytes (GB)
+    MinValue: 20
+    ConstraintDescription: Enter a size of at least 20 GB
+    Default: 20
+
+
+Conditions:
+  AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
+  AllowPeerAccess: !Not [!Equals [ !Ref PeerPortIpRange, '' ]]
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Software"
+        Parameters: [StellarCoreVersion, HorizonVersion, PostgresVersion]
+      - Label:
+          default: "Instance"
+        Parameters: [InstanceType, InstanceKeyPair]
+      - Label:
+          default: "Access"
+        Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
+      - Label:
+          default: "Database"
+        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword, DbInstanceType, DbStorage]
+
+    ParameterLabels:
+      StellarCoreVersion:
+        default: "Stellar Core Version"
+      HorizonVersion:
+        default: "Horizon Version"
+      PostgresVersion:
+        default: "PostgreSQL Version"
+      InstanceType:
+        default: "Instance Type"
+      InstanceKeyPair:
+        default: "Key Pair"
+      SshIpRange:
+        default: "IP Range for SSH Access"
+      PeerPortIpRange:
+        default: "IP Range for Peer Port Access"
+      HorizonIpRange:
+        default: "IP Range for Horizon Access"
+      HorizonPort:
+        default: "Horizon Port"
+      PgDbUsername:
+        default: "Superuser Username"
+      PgDbPassword:
+        default: "Superuser Password"
+      StellarDbUsername:
+        default: "Application Username"
+      StellarDbPassword:
+        default: "Application Password"
+      DbInstanceType:
+        default: "Instance Type"
+      DbStorage:
+        default: "Storage"
+
+
+Mappings:
+  # Latest ECS optimized AMIs as of Feb 28 2018:
+  # amzn-ami-2017.09.i-amazon-ecs-optimized. ECS agent: 1.17.1, Docker: 17.09.1-ce, ecs-init: 1.17.1-1
+  # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+  AwsRegionMap:
+    ap-northeast-1:
+      AMI: ami-bb5f13dd
+    ap-northeast-2:
+      AMI: ami-3b19b455
+    ap-south-1:
+      AMI: ami-9e91cff1
+    ap-southeast-1:
+      AMI: ami-f88ade84
+    ap-southeast-2:
+      AMI: ami-a677b6c4
+    ca-central-1:
+      AMI: ami-db48cfbf
+    eu-central-1:
+      AMI: ami-3b7d1354
+    eu-west-1:
+      AMI: ami-64c4871d
+    eu-west-2:
+      AMI: ami-25f51242
+    eu-west-3:
+      AMI: ami-0356e07e
+    sa-east-1:
+      AMI: ami-da2c66b6
+    us-east-1:
+      AMI: ami-cad827b7
+    us-east-2:
+      AMI: ami-ef64528a
+    us-west-1:
+      AMI: ami-29b8b249
+    us-west-2:
+      AMI: ami-baa236c2
+
+  StellarConfigMap:
+    All:
+      BucketDir: '/data/core/buckets'
+      CatchupRecent: '8640'
+      LogFilePath: ''
+    Test:
+      NetworkPassphrase: 'Test SDF Network ; September 2015'
+      KnownPeers: 'core-testnet1.stellar.org,core-testnet2.stellar.org,core-testnet3.stellar.org'
+      UnsafeQuorum: 'true'
+      FailureSafety: '1'
+      Commands: 'll?level=error&partition=Overlay' # Reduce chatty logging about connectionsS
+      History: |
+        {
+          "h1": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_001/{0} -o {1}" },
+          "h2": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_002/{0} -o {1}" },
+          "h3": { "get": "curl -sf https://s3-eu-west-1.amazonaws.com/history.stellar.org/prd/core-testnet/core_testnet_003/{0} -o {1}" }
+        }
+      QuorumSet: |
+        [{
+          "threshold_percent": 51,
+          "validators": ["GDKXE2OZMJIPOSLNA6N6F2BVCI3O777I2OOC4BV7VOYUEHYX7RTRYA7Y  sdf1",
+                         "GCUCJTIYXSOXKBSNFGNFWW5MUQ54HKRPGJUTQFJ5RQXZXNOLNXYDHRAP  sdf2",
+                         "GC2V2EFSXN6SQTWVYA5EPJPBWWIMSD2XQNKUOHGEKB535AQE2I6IXV2Z  sdf3"]
+        }]
+
+  HorizonConfigMap:
+      Test:
+        NetworkPassphrase: 'Test SDF Network ; September 2015'
+        LogLevel: 'info'
+        Ingest: 'true'
+        PerHourRateLimit: '72000'
+
+  CustomParamsMap:
+    Get:
+      DbCoreSchemaName: 'core'
+      DbHorizonSchemaName: 'horizon'
+      DbPort: 5432
+      StellarHttpPort: 11626
+      StellarPeerPort: 11625
+      RdsDbEngine: 'postgres'
+
+
+Resources:
+  # Network
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: '10.200.0.0/16'
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      VpcId: !Ref 'Vpc'
+      CidrBlock: '10.200.0.0/24'
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  GatewayAttachement:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'Vpc'
+      InternetGatewayId: !Ref 'InternetGateway'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'Vpc'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachement
+    Properties:
+      RouteTableId: !Ref 'PublicRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # ECS Resources
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+
+  EcsHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref AWS::StackName
+      GroupDescription: Access to the ECS hosts that run containers
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress:
+        - CidrIp: !Ref SshIpRange
+          Description: Allow SSH access via a specific IP Range
+          IpProtocol: 'tcp'
+          FromPort: 22
+          ToPort: 22
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  # Specify this here instead of above so that we can use the "Condition" key
+  EcsSecurityGroupIngressCorePeerPort:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowPeerAccess
+    Properties:
+      GroupId: !Ref 'EcsHostSecurityGroup'
+      Description: Open access to the peer port to everyone
+      CidrIp: 0.0.0.0/0
+      IpProtocol: 'tcp'
+      FromPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
+      ToPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
+
+  # Specify this here instead of above so that we can use the "Condition" key
+  EcsSecurityGroupIngressHorizon:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: AllowHorizonAccess
+    Properties:
+      GroupId: !Ref 'EcsHostSecurityGroup'
+      Description: Allow Horizon access via a specific IP Range
+      CidrIp: !Ref HorizonIpRange
+      IpProtocol: 'tcp'
+      FromPort: !Ref 'HorizonPort'
+      ToPort: !Ref 'HorizonPort'
+
+  EcsSecurityGroupIngressFromSelf:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'EcsHostSecurityGroup'
+      Description: Ingress from other hosts in the same security group
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref 'EcsHostSecurityGroup'
+
+  # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
+  EcsAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+      LaunchConfigurationName: !Ref 'EcsLaunchConfiguration'
+      MinSize: 1
+      MaxSize: 1
+      DesiredCapacity: 1
+      Tags:
+        - Key: 'Name'
+          Value: !Ref 'AWS::StackName'
+          PropagateAtLaunch: 'true'
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+
+  EcsLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    DependsOn: GatewayAttachement # Using AssociatePublicIpAddress requires that we add this dependency explicitly
+    Properties:
+      ImageId: !FindInMap [AwsRegionMap, !Ref 'AWS::Region', AMI]
+      SecurityGroups: [!Ref 'EcsHostSecurityGroup']
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'Ec2InstanceProfile'
+      KeyName: !Ref 'InstanceKeyPair'
+      AssociatePublicIpAddress: 'true'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum install -y aws-cfn-bootstrap
+
+          # Update the cluster config with the cluster name and then send a signal to the AutoScalingGroup
+          # to let them know creation complete successfully
+          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+
+  Ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'Ec2Role']
+
+  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts to communicate with the ECS control plane.
+  Ec2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role']
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ['ec2.amazonaws.com']
+          Action: ['sts:AssumeRole']
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access to the RDS DB
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref EcsHostSecurityGroup
+          Description: Allow Postgress access from ECS hosts
+          IpProtocol: 'tcp'
+          FromPort: !FindInMap [CustomParamsMap, Get, DbPort]
+          ToPort: !FindInMap [CustomParamsMap, Get, DbPort]
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Database subnet group
+      SubnetIds:
+        - PrivateSubnet
+      Tags:
+      - Key: Name
+        Value: !Ref 'AWS::StackName'
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      Engine: !FindInMap [CustomParamsMap, Get, RdsDbEngine]
+      EngineVersion: !Ref PostgresVersion
+      MasterUsername: !Ref PgDbUsername
+      MasterUserPassword: !Ref PgDbPassword
+      DBInstanceClass: !Ref DbInstanceType
+      AllocatedStorage: !Ref DbStorage
+      StorageType: gp2
+      MultiAZ: false
+      CopyTagsToSnapshot: true
+      Tags:
+      - Key: Name
+        Value: !Ref 'AWS::StackName'
+
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn: Database
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref EcsTaskDefinition
+
+  EcsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref 'AWS::StackName'
+      NetworkMode: host
+      ContainerDefinitions:
+        - Name: 'database'
+          Essential: true
+          Image: !Sub 'starformlabs/stellar-postgres:${PostgresVersion}'
+          MemoryReservation: 300
+          Environment:
+            - Name: 'POSTGRES_USER'
+              Value: !Ref PgDbUsername
+            - Name: 'POSTGRES_PASSWORD'
+              Value: !Ref PgDbPassword
+            - Name: 'STELLAR_DB_USER'
+              Value: !Ref StellarDbUsername
+            - Name: 'STELLAR_DB_PASSWORD'
+              Value: !Ref StellarDbPassword
+          PortMappings:
+            - ContainerPort: !FindInMap [CustomParamsMap, Get, DbPort]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Ref 'AWS::StackName'
+
+        - Name: 'core'
+          Essential: true
+          Image: !Sub 'starformlabs/stellar-core:${StellarCoreVersion}'
+          MemoryReservation: 300
+          PortMappings:
+            - ContainerPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
+          Environment:
+            # Used by entry.sh
+            - Name: DB_USER
+              Value: !Ref StellarDbUsername
+            - Name: DB_PASS
+              Value: !Ref StellarDbPassword
+            - Name: DB_NAME
+              Value: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
+            - Name: DB_HOST
+              Value: !GetAtt Database.Endpoint.Address
+            - Name: DB_PORT
+              Value: !FindInMap [CustomParamsMap, Get, DbPort]
+            - Name: DATA_DIR
+              Value: '/data'
+
+            # Used by Stellar Core
+            - Name: DATABASE
+              Value:
+                Fn::Sub:
+                  - 'postgresql://dbname=${db} host=${host} port=${port} user=${user} password=${pass}'
+                  - db: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
+                    host: !GetAtt Database.Endpoint.Address
+                    port: !FindInMap [CustomParamsMap, Get, DbPort]
+                    user: !Ref StellarDbUsername
+                    pass: !Ref StellarDbPassword
+            - Name: NETWORK_PASSPHRASE
+              Value: !FindInMap [StellarConfigMap, Test, NetworkPassphrase]
+            - Name: KNOWN_PEERS
+              Value: !FindInMap [StellarConfigMap, Test, KnownPeers]
+            - Name: BUCKET_DIR_PATH
+              Value: !FindInMap [StellarConfigMap, All, BucketDir]
+            - Name: UNSAFE_QUORUM
+              Value: !FindInMap [StellarConfigMap, Test, UnsafeQuorum]
+            - Name: FAILURE_SAFETY
+              Value: !FindInMap [StellarConfigMap, Test, FailureSafety]
+            - Name: CATCHUP_RECENT
+              Value: !FindInMap [StellarConfigMap, All, CatchupRecent]
+            - Name: LOG_FILE_PATH
+              Value: !FindInMap [StellarConfigMap, All, LogFilePath]
+            - Name: QUORUM_SET
+              Value: !FindInMap [StellarConfigMap, Test, QuorumSet]
+            - Name: HISTORY
+              Value: !FindInMap [StellarConfigMap, Test, History]
+            - Name: COMMANDS
+              Value: !FindInMap [StellarConfigMap, Test, Commands]
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Ref 'AWS::StackName'
+
+        - Name: 'horizon'
+          Essential: true
+          Image: !Sub 'starformlabs/stellar-horizon:${HorizonVersion}'
+          MemoryReservation: 300
+          PortMappings:
+            - ContainerPort: !Ref HorizonPort
+          Environment:
+            # Used by entry.sh
+            - Name: DB_USER
+              Value: !Ref StellarDbUsername
+            - Name: DB_PASS
+              Value: !Ref StellarDbPassword
+            - Name: DB_NAME
+              Value: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
+            - Name: DB_HOST
+              Value: !GetAtt Database.Endpoint.Address
+            - Name: DB_PORT
+              Value: !FindInMap [CustomParamsMap, Get, DbPort]
+            - Name: DATA_DIR
+              Value: '/data'
+
+            # Used by Horizon directly
+            - Name: PORT # Horizon Port
+              Value: !Ref HorizonPort
+            - Name: DATABASE_URL
+              Value:
+                Fn::Sub:
+                  - 'postgres://${user}:${pass}@${host}:${port}/${db}?sslmode=disable'
+                  - db: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
+                    user: !Ref StellarDbUsername
+                    pass: !Ref StellarDbPassword
+                    host: !GetAtt Database.Endpoint.Address
+                    port: !FindInMap [CustomParamsMap, Get, DbPort]
+            - Name: STELLAR_CORE_DATABASE_URL
+              Value:
+                Fn::Sub:
+                  - 'postgres://${user}:${pass}@${host}:${port}/${db}?sslmode=disable'
+                  - db: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
+                    user: !Ref StellarDbUsername
+                    pass: !Ref StellarDbPassword
+                    host: !GetAtt Database.Endpoint.Address
+                    port: !FindInMap [CustomParamsMap, Get, DbPort]
+            - Name: STELLAR_CORE_URL
+              Value:
+                Fn::Sub:
+                  - 'http://${host}:${port}'
+                  - host: 'localhost' # we are using host based networking so containers can access each other on localhost
+                    port: !FindInMap [CustomParamsMap, Get, StellarHttpPort]
+            - Name: LOG_LEVEL
+              Value: !FindInMap [HorizonConfigMap, Test, LogLevel]
+            - Name: INGEST
+              Value: !FindInMap [HorizonConfigMap, Test, Ingest]
+            - Name: PER_HOUR_RATE_LIMIT
+              Value: !FindInMap [HorizonConfigMap, Test, PerHourRateLimit]
+            - Name: NETWORK_PASSPHRASE
+              Value: !FindInMap [HorizonConfigMap, Test, NetworkPassphrase]
+
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Ref 'AWS::StackName'
+
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ttf/${AWS::StackName}'
+      RetentionInDays: 7
+
+
+Outputs:
+  Database:
+    Value: !Sub 'https://console.aws.amazon.com/rds/home?region=${AWS::Region}#dbinstance:id=${Database}'
+  LogGroup:
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
+  AutoScalingGroup:
+      Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
+  ECS:
+      Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
