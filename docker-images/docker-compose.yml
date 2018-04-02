@@ -50,7 +50,7 @@ services:
         }
 
   horizon:
-    image: starformlabs/stellar-horizon:0.12.2
+    image: starformlabs/stellar-horizon:0.12.3
     ports:
       - '8000:8000'
     environment:

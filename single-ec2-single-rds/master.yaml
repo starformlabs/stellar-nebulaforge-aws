@@ -13,8 +13,8 @@ Parameters:
   HorizonVersion:
     Description: Tag/Version of the docker image to be deployed
     Type: String
-    Default: '0.12.2'
-    AllowedValues: [latest, 0.12.2]
+    Default: '0.12.3'
+    AllowedValues: [latest, 0.12.2, 0.12.3]
 
   PostgresVersion:
     Description: Tag/Version of the docker image to be deployed
@@ -66,17 +66,8 @@ Parameters:
     AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
     ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
 
-  PgDbUsername:
-    Description: Postgres superuser username. Should be between 6 and 16 characters long. Alphanumeric only.
-    Type: String
-    MinLength: 6
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
-    Default: 'postgres'
-
   PgDbPassword:
-    Description: Postgres superuser password. Alphanumeric characters only. Should be between 7 and 40 characters long
+    Description: Postgres superuser password (usernane is postgres). Alphanumeric characters only. Should be between 7 and 40 characters long
     Type: String
     MinLength: 7
     MaxLength: 40
@@ -464,7 +455,7 @@ Resources:
         - !Ref DatabaseSecurityGroup
       Engine: !FindInMap [CustomParamsMap, Get, RdsDbEngine]
       EngineVersion: !Ref PostgresVersion
-      MasterUsername: !Ref PgDbUsername
+      MasterUsername: 'postgres' # Hardcoded to make sure users never accidentally wipe out their db by changing it
       MasterUserPassword: !Ref PgDbPassword
       DBInstanceClass: !Ref DbInstanceType
       AllocatedStorage: !Ref DbStorage

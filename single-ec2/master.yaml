@@ -13,8 +13,8 @@ Parameters:
   HorizonVersion:
     Description: Tag/Version of the docker image to be deployed
     Type: String
-    Default: '0.12.2'
-    AllowedValues: [latest, 0.12.2]
+    Default: '0.12.3'
+    AllowedValues: [latest, 0.12.2, 0.12.3]
 
   PostgresVersion:
     Description: Tag/Version of the docker image to be deployed
