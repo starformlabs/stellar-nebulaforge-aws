@@ -596,7 +596,7 @@ Resources:
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/ttf/${AWS::StackName}'
+      LogGroupName: !Sub '/single-ec2/${AWS::StackName}'
       RetentionInDays: 7
 
 
