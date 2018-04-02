@@ -16,7 +16,7 @@ Metadata:
         Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
       - Label:
           default: "Database"
-        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword, DbInstanceType, DbStorage]
+        Parameters: [PgDbPassword, StellarDbUsername, StellarDbPassword, DbInstanceType, DbStorage]
 
     ParameterLabels:
       StellarCoreVersion:
@@ -37,10 +37,8 @@ Metadata:
         default: "IP Range for Horizon Access"
       HorizonPort:
         default: "Horizon Port"
-      PgDbUsername:
-        default: "Superuser Username"
       PgDbPassword:
-        default: "Superuser Password"
+        default: "Superuser Password (username is hardcoded to postgres)"
       StellarDbUsername:
         default: "Application Username"
       StellarDbPassword:
