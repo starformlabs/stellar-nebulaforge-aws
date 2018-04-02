@@ -17,12 +17,6 @@ Parameters:
     AllowedValues: [latest, 0.12.2, 0.12.3]
 
   PostgresVersion:
-    Description: Tag/Version of the docker image to be deployed
-    Type: String
-    Default: '9.6'
-    AllowedValues: [9.6]
-
-  PostgresVersion:
     Default: 9.6.6
     Type: String
     ConstraintDescription: DB engine version not supported
