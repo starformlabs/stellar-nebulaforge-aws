@@ -16,7 +16,7 @@ Metadata:
         Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
       - Label:
           default: "Database"
-        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword]
+        Parameters: [PgDbPassword, StellarDbUsername, StellarDbPassword]
 
     ParameterLabels:
       StellarCoreVersion:
@@ -37,10 +37,8 @@ Metadata:
         default: "IP Range for Horizon Access"
       HorizonPort:
         default: "Horizon Port"
-      PgDbUsername:
-        default: "Superuser Username"
       PgDbPassword:
-        default: "Superuser Password"
+        default: "Superuser Password (username is hardcoded to postgres)"
       StellarDbUsername:
         default: "Application Username"
       StellarDbPassword:
@@ -100,15 +98,6 @@ Parameters:
     Type: String
     AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
     ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
-
-  PgDbUsername:
-    Description: Postgres superuser username. Should be between 6 and 16 characters long. Alphanumeric only.
-    Type: String
-    MinLength: 6
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
-    Default: 'postgres'
 
   PgDbPassword:
     Description: Postgres superuser password. Alphanumeric characters only. Should be between 7 and 40 characters long
@@ -212,6 +201,7 @@ Mappings:
 
   CustomParamsMap:
     Get:
+      DbSuperUserName: 'postgres'
       DbCoreSchemaName: 'core'
       DbHorizonSchemaName: 'horizon'
       DbPort: 5432
@@ -406,7 +396,7 @@ Resources:
           MemoryReservation: 300
           Environment:
             - Name: 'POSTGRES_USER'
-              Value: !Ref PgDbUsername
+              Value: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
             - Name: 'POSTGRES_PASSWORD'
               Value: !Ref PgDbPassword
             - Name: 'STELLAR_DB_USER'
