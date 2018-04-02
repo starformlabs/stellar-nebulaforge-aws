@@ -237,6 +237,7 @@ Mappings:
 
   CustomParamsMap:
     Get:
+      DbSuperUserName: 'postgres'
       DbCoreSchemaName: 'core'
       DbHorizonSchemaName: 'horizon'
       DbPort: 5432
@@ -445,7 +446,7 @@ Resources:
         - !Ref DatabaseSecurityGroup
       Engine: !FindInMap [CustomParamsMap, Get, RdsDbEngine]
       EngineVersion: !Ref PostgresVersion
-      MasterUsername: 'postgres' # Hardcoded to make sure users never accidentally wipe out their db by changing it
+      MasterUsername: !FindInMap [CustomParamsMap, Get, DbSuperUserName] # Hardcoded to make sure users never accidentally wipe out their db by changing it
       MasterUserPassword: !Ref PgDbPassword
       DBInstanceClass: !Ref DbInstanceType
       AllocatedStorage: !Ref DbStorage
