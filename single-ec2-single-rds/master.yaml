@@ -472,28 +472,6 @@ Resources:
       Family: !Ref 'AWS::StackName'
       NetworkMode: host
       ContainerDefinitions:
-        - Name: 'database'
-          Essential: true
-          Image: !Sub 'starformlabs/stellar-postgres:${PostgresVersion}'
-          MemoryReservation: 300
-          Environment:
-            - Name: 'POSTGRES_USER'
-              Value: !Ref PgDbUsername
-            - Name: 'POSTGRES_PASSWORD'
-              Value: !Ref PgDbPassword
-            - Name: 'STELLAR_DB_USER'
-              Value: !Ref StellarDbUsername
-            - Name: 'STELLAR_DB_PASSWORD'
-              Value: !Ref StellarDbPassword
-          PortMappings:
-            - ContainerPort: !FindInMap [CustomParamsMap, Get, DbPort]
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref 'CloudWatchLogsGroup'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: !Ref 'AWS::StackName'
-
         - Name: 'core'
           Essential: true
           Image: !Sub 'starformlabs/stellar-core:${StellarCoreVersion}'
