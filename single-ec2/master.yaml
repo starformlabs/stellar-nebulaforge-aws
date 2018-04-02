@@ -132,40 +132,40 @@ Conditions:
   AllowPeerAccess: !Not [!Equals [ !Ref PeerPortIpRange, '' ]]
 
 Mappings:
-  # Latest ECS optimized AMIs as of Feb 28 2018:
-  # amzn-ami-2017.09.i-amazon-ecs-optimized. ECS agent: 1.17.1, Docker: 17.09.1-ce, ecs-init: 1.17.1-1
+  # Latest ECS optimized AMIs as of Apr 02 2018:
+  # amzn-ami-2017.09.k-amazon-ecs-optimized. ECS agent: 1.17.2, Docker: 17.12.0-ce, ecs-init: 1.17.2-1
   # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
   AwsRegionMap:
     ap-northeast-1:
-      AMI: ami-bb5f13dd
+      AMI: ami-5add893c
     ap-northeast-2:
-      AMI: ami-3b19b455
+      AMI: ami-ba74d8d4
     ap-south-1:
-      AMI: ami-9e91cff1
+      AMI: ami-2149114e
     ap-southeast-1:
-      AMI: ami-f88ade84
+      AMI: ami-acbcefd0
     ap-southeast-2:
-      AMI: ami-a677b6c4
+      AMI: ami-4cc5072e
     ca-central-1:
-      AMI: ami-db48cfbf
+      AMI: ami-a535b2c1
     eu-central-1:
-      AMI: ami-3b7d1354
+      AMI: ami-ac055447
     eu-west-1:
-      AMI: ami-64c4871d
+      AMI: ami-bfb5fec6
     eu-west-2:
-      AMI: ami-25f51242
+      AMI: ami-a48d6bc3
     eu-west-3:
-      AMI: ami-0356e07e
+      AMI: ami-914afcec
     sa-east-1:
-      AMI: ami-da2c66b6
+      AMI: ami-d3bce9bf
     us-east-1:
-      AMI: ami-cad827b7
+      AMI: ami-cb17d8b6
     us-east-2:
-      AMI: ami-ef64528a
+      AMI: ami-1b90a67e
     us-west-1:
-      AMI: ami-29b8b249
+      AMI: ami-9cbbaffc
     us-west-2:
-      AMI: ami-baa236c2
+      AMI: ami-05b5277d
 
   StellarConfigMap:
     All:
