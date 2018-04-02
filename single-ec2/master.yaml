@@ -2,8 +2,51 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: Deploys Stellar Core, Horizon and PostgreSQL on a single EC2 server using ECS
 
-Parameters:
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Software"
+        Parameters: [StellarCoreVersion, HorizonVersion, PostgresVersion]
+      - Label:
+          default: "Instance"
+        Parameters: [InstanceType, InstanceKeyPair]
+      - Label:
+          default: "Access"
+        Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
+      - Label:
+          default: "Database"
+        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword]
 
+    ParameterLabels:
+      StellarCoreVersion:
+        default: "Stellar Core Version"
+      HorizonVersion:
+        default: "Horizon Version"
+      PostgresVersion:
+        default: "PostgreSQL Version"
+      InstanceType:
+        default: "Instance Type"
+      InstanceKeyPair:
+        default: "Key Pair"
+      SshIpRange:
+        default: "IP Range for SSH Access"
+      PeerPortIpRange:
+        default: "IP Range for Peer Port Access"
+      HorizonIpRange:
+        default: "IP Range for Horizon Access"
+      HorizonPort:
+        default: "Horizon Port"
+      PgDbUsername:
+        default: "Superuser Username"
+      PgDbPassword:
+        default: "Superuser Password"
+      StellarDbUsername:
+        default: "Application Username"
+      StellarDbPassword:
+        default: "Application Password"
+
+Parameters:
   StellarCoreVersion:
     Description: Tag/Version of the docker image to be deployed
     Type: String
@@ -98,51 +141,6 @@ Parameters:
 Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
   AllowPeerAccess: !Not [!Equals [ !Ref PeerPortIpRange, '' ]]
-
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Software"
-        Parameters: [StellarCoreVersion, HorizonVersion, PostgresVersion]
-      - Label:
-          default: "Instance"
-        Parameters: [InstanceType, InstanceKeyPair]
-      - Label:
-          default: "Access"
-        Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
-      - Label:
-          default: "Database"
-        Parameters: [PgDbUsername, PgDbPassword, StellarDbUsername, StellarDbPassword]
-
-    ParameterLabels:
-      StellarCoreVersion:
-        default: "Stellar Core Version"
-      HorizonVersion:
-        default: "Horizon Version"
-      PostgresVersion:
-        default: "PostgreSQL Version"
-      InstanceType:
-        default: "Instance Type"
-      InstanceKeyPair:
-        default: "Key Pair"
-      SshIpRange:
-        default: "IP Range for SSH Access"
-      PeerPortIpRange:
-        default: "IP Range for Peer Port Access"
-      HorizonIpRange:
-        default: "IP Range for Horizon Access"
-      HorizonPort:
-        default: "Horizon Port"
-      PgDbUsername:
-        default: "Superuser Username"
-      PgDbPassword:
-        default: "Superuser Password"
-      StellarDbUsername:
-        default: "Application Username"
-      StellarDbPassword:
-        default: "Application Password"
-
 
 Mappings:
   # Latest ECS optimized AMIs as of Feb 28 2018:
