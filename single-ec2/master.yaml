@@ -38,7 +38,7 @@ Metadata:
       HorizonPort:
         default: "Horizon Port"
       PgDbPassword:
-        default: "Superuser Password (username is hardcoded to postgres)"
+        default: "Superuser Password"
       StellarDbUsername:
         default: "Application Username"
       StellarDbPassword:
