@@ -237,10 +237,10 @@ Mappings:
 
   CustomParamsMap:
     Get:
-      DbSuperUserName: 'postgres'
-      DbCoreSchemaName: 'core'
-      DbHorizonSchemaName: 'horizon'
-      DbPort: 5432
+      DbSuperUserName: 'postgres' # Update EcsLaunchConfiguration if you change this
+      DbPort: 5432 # Update EcsLaunchConfiguration if you change this
+      DbCoreSchemaName: 'core' # Update EcsLaunchConfiguration if you change this
+      DbHorizonSchemaName: 'horizon' # Update EcsLaunchConfiguration if you change this
       StellarHttpPort: 11626
       StellarPeerPort: 11625
       RdsDbEngine: 'postgres'
@@ -390,7 +390,7 @@ Resources:
           ToPort: 22
       Tags:
         - Key: Name
-          Value: !Ref 'AWS::StackName'
+          Value: !Sub '${AWS::StackName}-instances'
 
   # Specify this here instead of above so that we can use the "Condition" key
   EcsSecurityGroupIngressCorePeerPort:
@@ -458,11 +458,38 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          yum install -y aws-cfn-bootstrap
+          yum install -y aws-cfn-bootstrap postgresql96
 
-          # Update the cluster config with the cluster name and then send a signal to the AutoScalingGroup
-          # to let them know creation complete successfully
+          # Update the cluster config with the cluster name
           echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+
+          # Wait for postgres
+          export PGPASSWORD=${PgDbPassword}
+          while ! psql -h "${Database.Endpoint.Address}" -U "postgres" -p "5432" -c 'select 1' "postgres" &> /dev/null ; do
+            echo "Waiting for postgres to be available..."
+            sleep 5
+          done
+
+          # Check if stellar user and schemas have already been created. If not, create them.
+          export PGPASSWORD=${StellarDbPassword}
+          if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "5432" -c 'select 1' "core" && \
+             psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "5432" -c 'select 1' "horizon"
+          then
+            echo "User/Schema already exists"
+          else
+            echo "User/Schema does not exist. Creating."
+            export PGPASSWORD=${PgDbPassword}
+            psql -h "${Database.Endpoint.Address}" -U "postgres" -p "5432" -v ON_ERROR_STOP=1 <<-EOSQL
+              CREATE USER ${StellarDbUsername} WITH PASSWORD '${StellarDbPassword}';
+              CREATE DATABASE core;
+              CREATE DATABASE horizon;
+              GRANT ALL PRIVILEGES ON DATABASE core TO ${StellarDbUsername};
+              GRANT ALL PRIVILEGES ON DATABASE horizon TO ${StellarDbUsername};
+          EOSQL
+            # Note. The lack of indentation above is required to properly close the heredoc
+          fi
+
+          # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
   Ec2InstanceProfile:
@@ -497,7 +524,7 @@ Resources:
           ToPort: !FindInMap [CustomParamsMap, Get, DbPort]
       Tags:
         - Key: Name
-          Value: !Ref 'AWS::StackName'
+          Value: !Sub '${AWS::StackName}-db'
 
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
