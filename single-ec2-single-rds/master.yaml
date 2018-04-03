@@ -284,16 +284,58 @@ Resources:
         - Key: Name
           Value: !Ref 'AWS::StackName'
 
-  PublicSubnet:
+  PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [ 0, !GetAZs '' ]
       VpcId: !Ref 'Vpc'
       CidrBlock: '10.200.0.0/24'
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName} Private Subnet 1'
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      VpcId: !Ref 'Vpc'
+      CidrBlock: '10.200.1.0/24'
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName} Private Subnet 2'
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'Vpc'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName} Private Routes'
+
+  PrivateRouteTableAssociation1:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTableAssociation2:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        SubnetId: !Ref PrivateSubnet2
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      VpcId: !Ref 'Vpc'
+      CidrBlock: '10.200.10.0/24'
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Ref 'AWS::StackName'
+          Value: !Sub '${AWS::StackName} Public Subnet'
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -312,6 +354,9 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref 'Vpc'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName} Public Routes'
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -459,7 +504,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: Database subnet group
       SubnetIds:
-        - PrivateSubnet
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       Tags:
       - Key: Name
         Value: !Ref 'AWS::StackName'
