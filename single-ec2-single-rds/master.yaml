@@ -622,7 +622,7 @@ Resources:
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/single-ec2/${AWS::StackName}'
+      LogGroupName: !Sub '/single-ec2-single-rds/${AWS::StackName}'
       RetentionInDays: 7
 
 
