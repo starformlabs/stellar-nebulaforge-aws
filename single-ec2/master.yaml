@@ -100,7 +100,7 @@ Parameters:
     ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
 
   PgDbPassword:
-    Description: Postgres superuser password. Alphanumeric characters only. Should be between 7 and 40 characters long
+    Description: Postgres superuser password (usernane is postgres). Alphanumeric characters only. Should be between 7 and 40 characters long
     Type: String
     MinLength: 7
     MaxLength: 40
@@ -411,7 +411,6 @@ Resources:
 
   EcsService:
     Type: AWS::ECS::Service
-#    DependsOn: Database
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
