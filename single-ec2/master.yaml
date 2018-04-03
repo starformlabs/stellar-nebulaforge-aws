@@ -66,7 +66,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t2.micro
-    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, c4.large]
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
     ConstraintDescription: Please choose a valid instance type.
 
   InstanceKeyPair:
@@ -208,6 +208,39 @@ Mappings:
       StellarHttpPort: 11626
       StellarPeerPort: 11625
 
+  MemoryReservationMap:
+    t2.micro:
+      db: 330
+      core: 330
+      horizon: 330
+    t2.small:
+      db: 665
+      core: 665
+      horizon: 665
+    t2.medium:
+      db: 1333
+      core: 1333
+      horizon: 1333
+    t2.large:
+      db: 2665
+      core: 2665
+      horizon: 2665
+    m4.large:
+      db: 2665
+      core: 2665
+      horizon: 2665
+    m5.large:
+      db: 2665
+      core: 2665
+      horizon: 2665
+    c4.large:
+      db: 1333
+      core: 1333
+      horizon: 1333
+    c5.large:
+      db: 1333
+      core: 1333
+      horizon: 1333
 
 Resources:
   # Network
@@ -393,7 +426,7 @@ Resources:
         - Name: 'database'
           Essential: true
           Image: !Sub 'starformlabs/stellar-postgres:${PostgresVersion}'
-          MemoryReservation: 300
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', db]
           Environment:
             - Name: 'POSTGRES_USER'
               Value: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
@@ -415,7 +448,7 @@ Resources:
         - Name: 'core'
           Essential: true
           Image: !Sub 'starformlabs/stellar-core:${StellarCoreVersion}'
-          MemoryReservation: 300
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', core]
           PortMappings:
             - ContainerPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
           Environment:
@@ -473,7 +506,7 @@ Resources:
         - Name: 'horizon'
           Essential: true
           Image: !Sub 'starformlabs/stellar-horizon:${HorizonVersion}'
-          MemoryReservation: 300
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', horizon]
           PortMappings:
             - ContainerPort: !Ref HorizonPort
           Environment:

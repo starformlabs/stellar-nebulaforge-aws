@@ -72,7 +72,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t2.micro
-    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, c4.large]
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
     ConstraintDescription: Please choose a valid instance type.
 
   InstanceKeyPair:
@@ -244,6 +244,32 @@ Mappings:
       StellarHttpPort: 11626
       StellarPeerPort: 11625
       RdsDbEngine: 'postgres'
+
+  MemoryReservationMap:
+    t2.micro:
+      core: 495
+      horizon: 495
+    t2.small:
+      core: 1000
+      horizon: 1000
+    t2.medium:
+      core: 2000
+      horizon: 2000
+    t2.large:
+      core: 4000
+      horizon: 4000
+    m4.large:
+      core: 4000
+      horizon: 4000
+    m5.large:
+      core: 4000
+      horizon: 4000
+    c4.large:
+      core: 2000
+      horizon: 2000
+    c5.large:
+      core: 2000
+      horizon: 2000
 
 
 Resources:
@@ -474,7 +500,7 @@ Resources:
         - Name: 'core'
           Essential: true
           Image: !Sub 'starformlabs/stellar-core:${StellarCoreVersion}'
-          MemoryReservation: 300
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', core]
           PortMappings:
             - ContainerPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
           Environment:
@@ -532,7 +558,7 @@ Resources:
         - Name: 'horizon'
           Essential: true
           Image: !Sub 'starformlabs/stellar-horizon:${HorizonVersion}'
-          MemoryReservation: 300
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', horizon]
           PortMappings:
             - ContainerPort: !Ref HorizonPort
           Environment:
