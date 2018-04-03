@@ -398,8 +398,8 @@ Resources:
     Condition: AllowPeerAccess
     Properties:
       GroupId: !Ref 'EcsHostSecurityGroup'
-      Description: Open access to the peer port to everyone
-      CidrIp: 0.0.0.0/0
+      Description: Allow stellar core peer port access via a specific IP Range
+      CidrIp: !Ref PeerPortIpRange
       IpProtocol: 'tcp'
       FromPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
       ToPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
