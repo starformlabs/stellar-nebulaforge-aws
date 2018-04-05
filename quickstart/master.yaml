@@ -4,10 +4,9 @@ Description: Deploys the stellar/quickstart docker image (ephemeral mode, testne
 
 Parameters:
   InstanceType:
-    Description: EC2 instance type
     Type: String
     Default: t2.micro
-    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, c4.large]
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
     ConstraintDescription: Please choose a valid instance type.
 
   InstanceKeyPair:
@@ -102,7 +101,26 @@ Mappings:
     get:
       DbPort: 5432
 
+  MemoryReservationMap:
+    t2.micro:
+      quickstart: 990 # Soft limit. Can't be the full 1024 because the instance and agent reserve some memory . About 992 is available by default
+    t2.small:
+      quickstart: 2000
+    t2.medium:
+      quickstart: 4000
+    t2.large:
+      quickstart: 8000
+    m4.large:
+      quickstart: 8000
+    m5.large:
+      quickstart: 8000
+    c4.large:
+      quickstart: 4000
+    c5.large:
+      quickstart: 4000
+
 Resources:
+  # Network
   Vpc:
     Type: AWS::EC2::VPC
     Properties:
@@ -141,6 +159,9 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref 'Vpc'
+      Tags:
+        - Key: Name
+          Value: !Ref 'AWS::StackName'
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -156,7 +177,6 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-
   # ECS Resources
   EcsCluster:
     Type: AWS::ECS::Cluster
@@ -165,7 +185,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Ref AWS::StackName
-      GroupDescription: Access to the Ecs hosts that run containers
+      GroupDescription: Access to the ECS hosts that run containers
       VpcId: !Ref 'Vpc'
       SecurityGroupIngress:
         - CidrIp: !Ref SshIpRange
@@ -196,7 +216,6 @@ Resources:
       Description: Ingress from other hosts in the same security group
       IpProtocol: -1
       SourceSecurityGroupId: !Ref 'EcsHostSecurityGroup'
-
 
   # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
   EcsAutoScalingGroup:
@@ -348,7 +367,7 @@ Resources:
           Essential: true
           Image: stellar/quickstart
           Command: ["--testnet"]
-          MemoryReservation: 990 #soft limit. Can't be the full 1024 because the instance and agent reserve some memory . About 992 is available by default
+          MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', quickstart]
           PortMappings:
             - ContainerPort: 8000
               HostPort: !Ref 'HorizonPort'
@@ -358,7 +377,8 @@ Resources:
             LogDriver: awslogs
             Options:
               awslogs-group: !Ref 'ContainersLogGroup'
-              awslogs-region: !Ref AWS::Region
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Ref 'AWS::StackName'
 
   ContainersLogGroup:
     Type: AWS::Logs::LogGroup
@@ -385,5 +405,5 @@ Outputs:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${InstancesLogGroup}'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
-  Ecs:
+  ECS:
       Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
