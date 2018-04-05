@@ -2,6 +2,28 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: Deploys the stellar/quickstart docker image (ephemeral mode, testnet) in a Public VPC with a single availibility zone.
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Instance"
+        Parameters: [InstanceType, InstanceKeyPair]
+      - Label:
+          default: "Access"
+        Parameters: [SshIpRange, HorizonIpRange, HorizonPort]
+
+    ParameterLabels:
+      InstanceType:
+        default: "Instance Type"
+      InstanceKeyPair:
+        default: "Key Pair"
+      SshIpRange:
+        default: "IP Range for SSH Access"
+      HorizonIpRange:
+        default: "IP Range for Horizon Access"
+      HorizonPort:
+        default: "Horizon Port"
+
 Parameters:
   InstanceType:
     Type: String
@@ -34,32 +56,8 @@ Parameters:
     Default: 8000
 
 
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "Instance"
-        Parameters: [InstanceType, InstanceKeyPair]
-      - Label:
-          default: "Access"
-        Parameters: [SshIpRange, HorizonIpRange, HorizonPort]
-
-    ParameterLabels:
-      InstanceType:
-        default: "Instance Type"
-      InstanceKeyPair:
-        default: "Instance Key Pair"
-      SshIpRange:
-        default: "IP Range for SSH Access"
-      HorizonIpRange:
-        default: "IP Range for Horizon Access"
-      HorizonPort:
-        default: "Horizon Port"
-
-
 Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
-
 
 Mappings:
   # Latest ECS optimized AMIs as of Apr 02 2018:
@@ -98,7 +96,7 @@ Mappings:
       AMI: ami-05b5277d
 
   CustomParamsMap:
-    get:
+    Get:
       DbPort: 5432
 
   MemoryReservationMap:
@@ -252,67 +250,69 @@ Resources:
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
-      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at start to install packages
+      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at the start to install packages
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
 
-          ##### INSTALL UPDATES AND TOOLS
-          yum update -y --security
-          yum install -y aws-cli aws-cfn-bootstrap awslogs jq
+            ##### INSTALL UPDATES AND TOOLS
+            yum update -y --security
+            yum install -y aws-cli aws-cfn-bootstrap awslogs jq
 
-          ##### ASSIGN ELASTIC IP
-          # Get the instance id from instance metadata
-          instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            ##### ASSIGN ELASTIC IP
+            # Get the instance id from instance metadata
+            instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Assign the elastic ip to this instance
-          aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
+            # Assign the elastic ip to this instance
+            aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
-          ##### SETUP INSTANCE LOGS
-          # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
-          sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+            ##### SETUP INSTANCE LOGS
+            # Set the region to send CloudWatch Logs data to the region where the container instance is located
+            sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
 
-          # Inject the CloudWatch Logs configuration file contents
-          cat > /etc/awslogs/awslogs.conf <<- EOF
-          [general]
-          state_file = /var/lib/awslogs/agent-state
+            # Inject the CloudWatch Logs configuration file contents
+            cat > /etc/awslogs/awslogs.conf <<- EOF
+            [general]
+            state_file = /var/lib/awslogs/agent-state
 
-          [/var/log/messages]
-          file = /var/log/messages
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/messages
-          datetime_format = %b %d %H:%M:%S
+            [/var/log/messages]
+            file = /var/log/messages
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/messages
+            datetime_format = %b %d %H:%M:%S
 
-          [/var/log/cfn-init.log]
-          file = /var/log/cfn-init.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cfn-init.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
+            [/var/log/cfn-init.log]
+            file = /var/log/cfn-init.log
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cfn-init.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
 
-          [/var/log/cloud-init-output.log]
-          file = /var/log/cloud-init-output.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
-          EOF
+            [/var/log/cloud-init-output.log]
+            file = /var/log/cloud-init-output.log
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
+            EOF
 
-          # Grab the container instance id from instance metadata
-          container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            # Grab the container instance id from instance metadata
+            container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Replace the container instance ID placeholders with the actual values
-          sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
+            # Replace the container instance ID placeholders with the actual values
+            sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
 
-          # Start/Enable awslogs service
-          service awslogs start
-          chkconfig awslogs on
+            # Start/Enable awslogs service
+            service awslogs start
+            chkconfig awslogs on
 
-          ##### ECS CLUSTER CONFIG
-          # Update the cluster config with the cluster name
-          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+            ##### ECS CLUSTER CONFIG
+            # Update the cluster config with the cluster name
+            echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
 
-          ##### SIGNAL ASG
-          # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+            ##### SIGNAL ASG
+            # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+          - instancesLogGroup: !Sub '/stellar/${AWS::StackName}-instances' # hardcoded in outputs also
 
   Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -354,8 +354,8 @@ Resources:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
       DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 100
+        MaximumPercent: 100 # Shutdown the old task before starting the new one, don't want the writing to efs/db simultaneously
+        MinimumHealthyPercent: 0
       TaskDefinition: !Ref EcsTaskDefinition
 
   EcsTaskDefinition:
@@ -363,7 +363,7 @@ Resources:
     Properties:
       Family: !Ref 'AWS::StackName'
       ContainerDefinitions:
-        - Name: quickstart
+        - Name: 'quickstart'
           Essential: true
           Image: stellar/quickstart
           Command: ["--testnet"]
@@ -371,8 +371,8 @@ Resources:
           PortMappings:
             - ContainerPort: 8000
               HostPort: !Ref 'HorizonPort'
-            - ContainerPort: !FindInMap [CustomParamsMap, get, DbPort]
-              HostPort: !FindInMap [CustomParamsMap, get, DbPort]
+            - ContainerPort: !FindInMap [CustomParamsMap, Get, DbPort]
+              HostPort: !FindInMap [CustomParamsMap, Get, DbPort]
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -386,13 +386,6 @@ Resources:
       LogGroupName: !Sub '/stellar/${AWS::StackName}-containers'
       RetentionInDays: 7
 
-  InstancesLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/stellar/${AWS::StackName}-instances'
-      RetentionInDays: 7
-
-
 Outputs:
   SshUrl:
     Value: !Sub 'ssh://ec2-user@${EcsInstanceElasticIP}'
@@ -402,7 +395,7 @@ Outputs:
   ContainersLogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${ContainersLogGroup}'
   InstancesLogGroup:
-    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${InstancesLogGroup}'
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=/stellar/${AWS::StackName}-instances'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
   ECS:

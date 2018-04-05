@@ -201,11 +201,12 @@ Mappings:
   CustomParamsMap:
     Get:
       DbSuperUserName: 'postgres'
+      DbPort: 5432
       DbCoreSchemaName: 'core'
       DbHorizonSchemaName: 'horizon'
-      DbPort: 5432
       StellarHttpPort: 11626
       StellarPeerPort: 11625
+      ContainerDataDirectory: '/data'
 
   MemoryReservationMap:
     t2.micro:
@@ -386,67 +387,69 @@ Resources:
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
-      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at start to install packages
+      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at the start to install packages
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
 
-          ##### INSTALL UPDATES AND TOOLS
-          yum update -y --security
-          yum install -y aws-cli aws-cfn-bootstrap awslogs jq
+            ##### INSTALL UPDATES AND TOOLS
+            yum update -y --security
+            yum install -y aws-cli aws-cfn-bootstrap awslogs jq
 
-          ##### ASSIGN ELASTIC IP
-          # Get the instance id from instance metadata
-          instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            ##### ASSIGN ELASTIC IP
+            # Get the instance id from instance metadata
+            instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Assign the elastic ip to this instance
-          aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
+            # Assign the elastic ip to this instance
+            aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
-          ##### SETUP INSTANCE LOGS
-          # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
-          sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+            ##### SETUP INSTANCE LOGS
+            # Set the region to send CloudWatch Logs data to the region where the container instance is located
+            sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
 
-          # Inject the CloudWatch Logs configuration file contents
-          cat > /etc/awslogs/awslogs.conf <<- EOF
-          [general]
-          state_file = /var/lib/awslogs/agent-state
+            # Inject the CloudWatch Logs configuration file contents
+            cat > /etc/awslogs/awslogs.conf <<- EOF
+            [general]
+            state_file = /var/lib/awslogs/agent-state
 
-          [/var/log/messages]
-          file = /var/log/messages
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/messages
-          datetime_format = %b %d %H:%M:%S
+            [/var/log/messages]
+            file = /var/log/messages
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/messages
+            datetime_format = %b %d %H:%M:%S
 
-          [/var/log/cfn-init.log]
-          file = /var/log/cfn-init.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cfn-init.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
+            [/var/log/cfn-init.log]
+            file = /var/log/cfn-init.log
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cfn-init.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
 
-          [/var/log/cloud-init-output.log]
-          file = /var/log/cloud-init-output.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
-          EOF
+            [/var/log/cloud-init-output.log]
+            file = /var/log/cloud-init-output.log
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
+            EOF
 
-          # Grab the container instance id from instance metadata
-          container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            # Grab the container instance id from instance metadata
+            container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Replace the container instance ID placeholders with the actual values
-          sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
+            # Replace the container instance ID placeholders with the actual values
+            sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
 
-          # Start/Enable awslogs service
-          service awslogs start
-          chkconfig awslogs on
+            # Start/Enable awslogs service
+            service awslogs start
+            chkconfig awslogs on
 
-          ##### ECS CLUSTER CONFIG
-          # Update the cluster config with the cluster name
-          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+            ##### ECS CLUSTER CONFIG
+            # Update the cluster config with the cluster name
+            echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
 
-          ##### SIGNAL ASG
-          # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+            ##### SIGNAL ASG
+            # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+          - instancesLogGroup: !Sub '/stellar/${AWS::StackName}-instances' # hardcoded in outputs also
 
   Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -488,8 +491,8 @@ Resources:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
       DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 100
+        MaximumPercent: 100 # Shutdown the old task before starting the new one, don't want the writing to efs/db simultaneously
+        MinimumHealthyPercent: 0
       TaskDefinition: !Ref EcsTaskDefinition
 
   EcsTaskDefinition:
@@ -539,7 +542,7 @@ Resources:
             - Name: DB_PORT
               Value: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: DATA_DIR
-              Value: '/data'
+              Value: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
 
             # Used by Stellar Core
             - Name: DATABASE
@@ -648,13 +651,6 @@ Resources:
       LogGroupName: !Sub '/stellar/${AWS::StackName}-containers'
       RetentionInDays: 7
 
-  InstancesLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/stellar/${AWS::StackName}-instances'
-      RetentionInDays: 7
-
-
 Outputs:
   SshUrl:
     Value: !Sub 'ssh://ec2-user@${EcsInstanceElasticIP}'
@@ -664,7 +660,7 @@ Outputs:
   ContainersLogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${ContainersLogGroup}'
   InstancesLogGroup:
-    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${InstancesLogGroup}'
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=/stellar/${AWS::StackName}-instances'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
   ECS:
