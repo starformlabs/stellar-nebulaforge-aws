@@ -384,11 +384,52 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y --security
-          yum install -y aws-cfn-bootstrap
+          yum install -y aws-cfn-bootstrap awslogs jq
 
-          # Update the cluster config with the cluster name and then send a signal to the AutoScalingGroup
-          # to let them know creation complete successfully
+          ##### SETUP INSTANCE LOGS
+          # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
+          sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+
+          # Inject the CloudWatch Logs configuration file contents
+          cat > /etc/awslogs/awslogs.conf <<- EOF
+          [general]
+          state_file = /var/lib/awslogs/agent-state
+
+          [/var/log/messages]
+          file = /var/log/messages
+          log_group_name = ${InstancesLogGroup}
+          log_stream_name = {container_instance_id}/var/log/messages
+          datetime_format = %b %d %H:%M:%S
+
+          [/var/log/cfn-init.log]
+          file = /var/log/cfn-init.log
+          log_group_name = ${InstancesLogGroup}
+          log_stream_name = {container_instance_id}/var/log/cfn-init.log
+          datetime_format = %Y-%m-%dT%H:%M:%SZ
+
+          [/var/log/cloud-init-output.log]
+          file = /var/log/cloud-init-output.log
+          log_group_name = ${InstancesLogGroup}
+          log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
+          datetime_format = %Y-%m-%dT%H:%M:%SZ
+          EOF
+
+          # Grab the container instance id from instance metadata
+          container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+
+          # Replace the container instance ID placeholders with the actual values
+          sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
+
+          # Start/Enable awslogs service
+          service awslogs start
+          chkconfig awslogs on
+
+          ##### ECS CLUSTER CONFIG
+          # Update the cluster config with the cluster name
           echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+
+          ##### SIGNAL ASG
+          # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
   Ec2InstanceProfile:
@@ -403,6 +444,14 @@ Resources:
     Properties:
       Path: /
       ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role']
+      Policies: # Additional permissions beyond AmazonEC2ContainerServiceforEC2Role used for instance logging
+        - PolicyName: 'AllowInstanceLogs'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ 'logs:CreateLogGroup', 'logs:DescribeLogStreams' ]
+                Resource: 'arn:aws:logs:*:*:*'
       AssumeRolePolicyDocument:
         Statement:
         - Effect: Allow
@@ -441,7 +490,7 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-group: !Ref 'ContainersLogGroup'
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: !Ref 'AWS::StackName'
 
@@ -499,7 +548,7 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-group: !Ref 'ContainersLogGroup'
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: !Ref 'AWS::StackName'
 
@@ -563,20 +612,28 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'CloudWatchLogsGroup'
+              awslogs-group: !Ref 'ContainersLogGroup'
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: !Ref 'AWS::StackName'
 
-  CloudWatchLogsGroup:
+  ContainersLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/single-ec2/${AWS::StackName}'
+      LogGroupName: !Sub '/stellar/${AWS::StackName}-containers'
+      RetentionInDays: 7
+
+  InstancesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/stellar/${AWS::StackName}-instances'
       RetentionInDays: 7
 
 
 Outputs:
-  LogGroup:
-    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${CloudWatchLogsGroup}'
+  ContainersLogGroup:
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${ContainersLogGroup}'
+  InstancesLogGroup:
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${InstancesLogGroup}'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
   ECS:
