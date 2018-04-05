@@ -62,9 +62,8 @@ Parameters:
     AllowedValues: [latest, 0.12.2, 0.12.3]
 
   PostgresVersion:
-    Default: 9.6.8
     Type: String
-    ConstraintDescription: DB engine version not supported
+    Default: 9.6.8
     AllowedValues:
       - 9.6.8
       - 9.6.6
@@ -433,34 +432,48 @@ Resources:
         - !Ref PublicSubnet
       LaunchConfigurationName: !Ref 'EcsLaunchConfiguration'
       MinSize: 1
-      MaxSize: 1
+      MaxSize: 2 # Allows capacity for AutoScalingReplacingUpdate
       DesiredCapacity: 1
       Tags:
-        - Key: 'Name'
+        - Key: Name
           Value: !Ref 'AWS::StackName'
           PropagateAtLaunch: 'true'
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT15M
+        Timeout: PT10M
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: 'true'
 
+  EcsInstanceElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachement # Associating the IP with the vpc requires that we add this dependency explicitly
+    Properties:
+      Domain: vpc
+
   EcsLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
-    DependsOn: GatewayAttachement # Using AssociatePublicIpAddress requires that we add this dependency explicitly
     Properties:
       ImageId: !FindInMap [AwsRegionMap, !Ref 'AWS::Region', AMI]
       SecurityGroups: [!Ref 'EcsHostSecurityGroup']
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
-      AssociatePublicIpAddress: 'true'
+      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at start to install packages
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+
+          ##### INSTALL UPDATES AND TOOLS
           yum update -y --security
-          yum install -y aws-cfn-bootstrap awslogs jq postgresql96
+          yum install -y aws-cli aws-cfn-bootstrap awslogs jq
+
+          ##### ASSIGN ELASTIC IP
+          # Get the instance id from instance metadata
+          instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+
+          # Assign the elastic ip to this instance
+          aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
           ##### SETUP INSTANCE LOGS
           # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
@@ -555,6 +568,13 @@ Resources:
               - Effect: Allow
                 Action: [ 'logs:CreateLogGroup', 'logs:DescribeLogStreams' ]
                 Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: 'AssociateElasticIP'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ 'ec2:AllocateAddress', 'ec2:AssociateAddress', 'ec2:DescribeAddresses', 'ec2:DisassociateAddress' ]
+                Resource: '*'
       AssumeRolePolicyDocument:
         Statement:
         - Effect: Allow
@@ -613,6 +633,9 @@ Resources:
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
       TaskDefinition: !Ref EcsTaskDefinition
 
   EcsTaskDefinition:
@@ -756,6 +779,11 @@ Resources:
       RetentionInDays: 7
 
 Outputs:
+  SshUrl:
+    Value: !Sub 'ssh://ec2-user@${EcsInstanceElasticIP}'
+  HorizonUrl:
+    Condition: AllowHorizonAccess
+    Value: !Sub 'http://${EcsInstanceElasticIP}:${HorizonPort}'
   Database:
     Value: !Sub 'https://console.aws.amazon.com/rds/home?region=${AWS::Region}#dbinstance:id=${Database}'
   ContainersLogGroup:

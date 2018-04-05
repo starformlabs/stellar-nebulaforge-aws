@@ -206,7 +206,7 @@ Resources:
         - !Ref PublicSubnet
       LaunchConfigurationName: !Ref 'EcsLaunchConfiguration'
       MinSize: 1
-      MaxSize: 1
+      MaxSize: 2 # Allows capacity for AutoScalingReplacingUpdate
       DesiredCapacity: 1
       Tags:
         - Key: Name
@@ -214,39 +214,40 @@ Resources:
           PropagateAtLaunch: 'true'
     CreationPolicy:
       ResourceSignal:
-        Timeout: PT15M
+        Timeout: PT10M
     UpdatePolicy:
       AutoScalingReplacingUpdate:
         WillReplace: 'true'
 
-  # We are using this wait handle to capture the IP address of the instance
-  # This workaround is required even though we only have one instance because we are using auto-scaling for restart/reliability
-  # and consistency with other templates. The AutoScalingGroup doesn't allow us to get info on individual instances
-  InstanceIpWaitHandle:
-    Type: AWS::CloudFormation::WaitConditionHandle
-
-  InstanceIpWaitCondition:
-    Type: AWS::CloudFormation::WaitCondition
-    DependsOn: EcsAutoScalingGroup
+  EcsInstanceElasticIP:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachement # Associating the IP with the vpc requires that we add this dependency explicitly
     Properties:
-      Handle: !Ref InstanceIpWaitHandle
-      Timeout: 300
+      Domain: vpc
 
   EcsLaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
-    DependsOn: GatewayAttachement # Using AssociatePublicIpAddress requires that we add this dependency explicitly
     Properties:
       ImageId: !FindInMap [AwsRegionMap, !Ref 'AWS::Region', AMI]
       SecurityGroups: [!Ref 'EcsHostSecurityGroup']
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
-      AssociatePublicIpAddress: 'true'
+      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at start to install packages
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+
+          ##### INSTALL UPDATES AND TOOLS
           yum update -y --security
-          yum install -y aws-cfn-bootstrap awslogs jq
+          yum install -y aws-cli aws-cfn-bootstrap awslogs jq
+
+          ##### ASSIGN ELASTIC IP
+          # Get the instance id from instance metadata
+          instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+
+          # Assign the elastic ip to this instance
+          aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
           ##### SETUP INSTANCE LOGS
           # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
@@ -294,12 +295,6 @@ Resources:
           # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
-          ##### SIGNAL WAIT HANDLE
-          # Get the IP address of the instance and send it to the wait handle
-          # Note, InstanceIpWaitHandle is a CloudFormation reference for the handler url that gets replaced by the !Sub command
-          IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
-          /opt/aws/bin/cfn-signal -e $? --data $IP "${InstanceIpWaitHandle}"
-
   Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -320,6 +315,13 @@ Resources:
               - Effect: Allow
                 Action: [ 'logs:CreateLogGroup', 'logs:DescribeLogStreams' ]
                 Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: 'AssociateElasticIP'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [ 'ec2:AllocateAddress', 'ec2:AssociateAddress', 'ec2:DescribeAddresses', 'ec2:DisassociateAddress' ]
+                Resource: '*'
       AssumeRolePolicyDocument:
         Statement:
         - Effect: Allow
@@ -332,6 +334,9 @@ Resources:
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
       TaskDefinition: !Ref EcsTaskDefinition
 
   EcsTaskDefinition:
@@ -370,14 +375,10 @@ Resources:
 
 Outputs:
   SshUrl:
-    Description: SSH URL (not always clickable)
-    # Hackish workaround to parse the IP address out of the JSON string returned by InstanceIpWaitCondition.Data
-    # String is in the format {"i-0cae7e6721ce7a5cc":"34.207.113.212"} so we split on the quote mark
-    Value: !Join ['', [ 'ssh://ec2-user@', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']] ] ]
+    Value: !Sub 'ssh://ec2-user@${EcsInstanceElasticIP}'
   HorizonUrl:
     Condition: AllowHorizonAccess
-    Description: URL to access Horizon
-    Value: !Join ['', [ 'http://', !Select [3, !Split ['"', !GetAtt 'InstanceIpWaitCondition.Data']], ':', !Ref 'HorizonPort' ] ]
+    Value: !Sub 'http://${EcsInstanceElasticIP}:${HorizonPort}'
   ContainersLogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${ContainersLogGroup}'
   InstancesLogGroup:
