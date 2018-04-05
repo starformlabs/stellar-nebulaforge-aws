@@ -245,6 +245,9 @@ Mappings:
       StellarHttpPort: 11626
       StellarPeerPort: 11625
       RdsDbEngine: 'postgres'
+      EfsPort: 2049
+      EfsInstanceMountPoint: '/mnt/efs'
+      ContainerDataDirectory: '/data'
 
   MemoryReservationMap:
     t2.micro:
@@ -428,6 +431,9 @@ Resources:
   # This launches the actual EC2 instance that will register as a member of the cluster and run the containers.
   EcsAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - EfsMountTarget1
+      - EfsMountTarget2
     Properties:
       VPCZoneIdentifier:
         - !Ref PublicSubnet
@@ -464,21 +470,37 @@ Resources:
       UserData:
         Fn::Base64: !Sub
           - |
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+            MIME-Version: 1.0
+
+            --==BOUNDARY==
+            Content-Type: text/cloud-boothook; charset="us-ascii"
+
+            ##### INSTALL TOOLS
+            cloud-init-per once install_packages yum install -y aws-cli amazon-efs-utils aws-cfn-bootstrap awslogs jq
+
+            ##### MOUNT EFS FILESYSTEM
+            # Mount EFS using amazon-efs-utils and save exit code to be used later by cfn-signal
+            # Mounting is done in cloud-boothook to make sure it is done before docker/ecs starts
+            cloud-init-per once mkdir_efs mkdir -p ${efsInstanceMountPoint}
+            mount -t efs ${EfsFileSystem} ${efsInstanceMountPoint}
+            echo -n $? > /var/log/efs-mount-exit-code.log
+
+            --==BOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
             #!/bin/bash
 
-            ##### INSTALL UPDATES AND TOOLS
+            ##### INSTALL SECURITY UPDATES
+            # Do this here rather in cloud-boothook so we can see it easier in the logs on cloudwatch
             yum update -y --security
-            yum install -y aws-cli aws-cfn-bootstrap awslogs jq
 
             ##### ASSIGN ELASTIC IP
-            # Get the instance id from instance metadata
+            # Get the instance id from instance metadata and assign the elastic ip to this instance
             instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-
-            # Assign the elastic ip to this instance
             aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
             ##### SETUP INSTANCE LOGS
-            # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
+            # Set the region to send CloudWatch Logs data to the region where the container instance is located
             sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
 
             # Inject the CloudWatch Logs configuration file contents
@@ -488,27 +510,31 @@ Resources:
 
             [/var/log/messages]
             file = /var/log/messages
-            log_group_name = ${InstancesLogGroup}
+            log_group_name = ${instancesLogGroup}
             log_stream_name = {container_instance_id}/var/log/messages
             datetime_format = %b %d %H:%M:%S
 
             [/var/log/cfn-init.log]
             file = /var/log/cfn-init.log
-            log_group_name = ${InstancesLogGroup}
+            log_group_name = ${instancesLogGroup}
             log_stream_name = {container_instance_id}/var/log/cfn-init.log
             datetime_format = %Y-%m-%dT%H:%M:%SZ
 
             [/var/log/cloud-init-output.log]
             file = /var/log/cloud-init-output.log
-            log_group_name = ${InstancesLogGroup}
+            log_group_name = ${instancesLogGroup}
             log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
+
+            [/var/log/amazon/efs/mount.log]
+            file = /var/log/amazon/efs/mount.log
+            log_group_name = ${instancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/amazon/efs/mount.log
             datetime_format = %Y-%m-%dT%H:%M:%SZ
             EOF
 
-            # Grab the container instance id from instance metadata
+            # Get the instance id from instance metadata and replace the container instance ID placeholders with the actual values
             container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-
-            # Replace the container instance ID placeholders with the actual values
             sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
 
             # Start/Enable awslogs service
@@ -522,40 +548,43 @@ Resources:
             ##### DB INIT
             # Wait for postgres
             export PGPASSWORD=${PgDbPassword}
-            while ! psql -h "${Database.Endpoint.Address}" -U "${superUser}" -p "${dbPort}" -c 'select 1' "${defaultSchema}" &> /dev/null ; do
+            while ! psql -h "${Database.Endpoint.Address}" -U "${dbSuperUser}" -p "${dbPort}" -c 'select 1' "${dbDefaultSchema}" &> /dev/null ; do
               echo "Waiting for postgres to be available..."
               sleep 5
             done
 
             # Check if stellar user and schemas have already been created. If not, create them.
             export PGPASSWORD=${StellarDbPassword}
-            if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${coreSchema}" && \
-               psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${horizonSchema}"
+            if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${dbCoreSchema}" && \
+               psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${dbHorizonSchema}"
             then
               echo "User/Schema already exists"
             else
               echo "User/Schema does not exist. Creating."
               export PGPASSWORD=${PgDbPassword}
-              psql -h "${Database.Endpoint.Address}" -U "${superUser}" -p "${dbPort}" -v ON_ERROR_STOP=1 <<-EOSQL
+              psql -h "${Database.Endpoint.Address}" -U "${dbSuperUser}" -p "${dbPort}" -v ON_ERROR_STOP=1 <<-EOSQL
                 CREATE USER ${StellarDbUsername} WITH PASSWORD '${StellarDbPassword}';
-                CREATE DATABASE ${coreSchema};
-                CREATE DATABASE ${horizonSchema};
-                GRANT ALL PRIVILEGES ON DATABASE ${coreSchema} TO ${StellarDbUsername};
-                GRANT ALL PRIVILEGES ON DATABASE ${horizonSchema} TO ${StellarDbUsername};
+                CREATE DATABASE ${dbCoreSchema};
+                CREATE DATABASE ${dbHorizonSchema};
+                GRANT ALL PRIVILEGES ON DATABASE ${dbCoreSchema} TO ${StellarDbUsername};
+                GRANT ALL PRIVILEGES ON DATABASE ${dbHorizonSchema} TO ${StellarDbUsername};
             EOSQL
               # Note. The lack of indentation above is required to properly close the heredoc
             fi
 
             ##### SIGNAL ASG
-            # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+            # Send a signal to the AutoScalingGroup with the return value of the EFS mount command to let it know creation completed
+            efs_exit_code=$(cat /var/log/efs-mount-exit-code.log)
+            /opt/aws/bin/cfn-signal -e $efs_exit_code --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
           # The variables are substituted above in addition to other template resources and attributes like ${EcsCluster}
-          - superUser: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
+          - dbSuperUser: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
             dbPort: !FindInMap [CustomParamsMap, Get, DbPort]
-            defaultSchema: !FindInMap [CustomParamsMap, Get, DbDefaultSchemaName]
-            coreSchema: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
-            horizonSchema: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
+            dbDefaultSchema: !FindInMap [CustomParamsMap, Get, DbDefaultSchemaName]
+            dbCoreSchema: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
+            dbHorizonSchema: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
+            efsInstanceMountPoint: !FindInMap [CustomParamsMap, Get, EfsInstanceMountPoint]
+            instancesLogGroup: !Sub '/stellar/${AWS::StackName}-instances' # hardcoded in outputs also
 
   Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -591,6 +620,48 @@ Resources:
             Service: ['ec2.amazonaws.com']
           Action: ['sts:AssumeRole']
 
+  # EFS
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EFS Security Groups
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref EcsHostSecurityGroup
+          Description: Allows ECS hosts to access the EFS
+          IpProtocol: 'tcp'
+          FromPort: !FindInMap [CustomParamsMap, Get, EfsPort]
+          ToPort: !FindInMap [CustomParamsMap, Get, EfsPort]
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-efs
+
+  EfsFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: false
+      PerformanceMode: generalPurpose
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-efs
+
+  EfsMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref PrivateSubnet1
+
+  EfsMountTarget2:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EfsFileSystem
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref PrivateSubnet2
+
+  # DATABASE
   DatabaseSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -643,8 +714,8 @@ Resources:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
       DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 100
+        MaximumPercent: 100 # Shutdown the old task before starting the new one, don't want the writing to efs/db simultaneously
+        MinimumHealthyPercent: 0
       TaskDefinition: !Ref EcsTaskDefinition
 
   EcsTaskDefinition:
@@ -652,11 +723,18 @@ Resources:
     Properties:
       Family: !Ref 'AWS::StackName'
       NetworkMode: host
+      Volumes:
+        - Name: efs-volume
+          Host:
+            SourcePath: !FindInMap [CustomParamsMap, Get, EfsInstanceMountPoint]
       ContainerDefinitions:
         - Name: 'core'
           Essential: true
           Image: !Sub 'starformlabs/stellar-core:${StellarCoreVersion}'
           MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', core]
+          MountPoints:
+            - SourceVolume: efs-volume
+              ContainerPath: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
           PortMappings:
             - ContainerPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
           Environment:
@@ -672,7 +750,7 @@ Resources:
             - Name: DB_PORT
               Value: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: DATA_DIR
-              Value: '/data'
+              Value: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
 
             # Used by Stellar Core
             - Name: DATABASE
@@ -781,12 +859,6 @@ Resources:
       LogGroupName: !Sub '/stellar/${AWS::StackName}-containers'
       RetentionInDays: 7
 
-  InstancesLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/stellar/${AWS::StackName}-instances'
-      RetentionInDays: 7
-
 Outputs:
   SshUrl:
     Value: !Sub 'ssh://ec2-user@${EcsInstanceElasticIP}'
@@ -798,7 +870,7 @@ Outputs:
   ContainersLogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${ContainersLogGroup}'
   InstancesLogGroup:
-    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=${InstancesLogGroup}'
+    Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=/stellar/${AWS::StackName}-instances'
   AutoScalingGroup:
       Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
   ECS:
