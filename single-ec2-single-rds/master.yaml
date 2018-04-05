@@ -62,12 +62,13 @@ Parameters:
     AllowedValues: [latest, 0.12.2, 0.12.3]
 
   PostgresVersion:
-    Default: 9.6.6
+    Default: 9.6.8
     Type: String
     ConstraintDescription: DB engine version not supported
     AllowedValues:
+      - 9.6.8
       - 9.6.6
-      - 10.1
+      - 10.3
 
   InstanceType:
     Type: String
@@ -458,6 +459,7 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
+          yum update -y --security
           yum install -y aws-cfn-bootstrap postgresql96
 
           # Update the cluster config with the cluster name
