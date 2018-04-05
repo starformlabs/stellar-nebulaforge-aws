@@ -237,10 +237,11 @@ Mappings:
 
   CustomParamsMap:
     Get:
-      DbSuperUserName: 'postgres' # Update EcsLaunchConfiguration if you change this
-      DbPort: 5432 # Update EcsLaunchConfiguration if you change this
-      DbCoreSchemaName: 'core' # Update EcsLaunchConfiguration if you change this
-      DbHorizonSchemaName: 'horizon' # Update EcsLaunchConfiguration if you change this
+      DbSuperUserName: 'postgres'
+      DbPort: 5432
+      DbDefaultSchemaName: 'postgres'
+      DbCoreSchemaName: 'core'
+      DbHorizonSchemaName: 'horizon'
       StellarHttpPort: 11626
       StellarPeerPort: 11625
       RdsDbEngine: 'postgres'
@@ -459,94 +460,102 @@ Resources:
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
       KeyName: !Ref 'InstanceKeyPair'
-      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at start to install packages
+      AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at the start to install packages
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
 
-          ##### INSTALL UPDATES AND TOOLS
-          yum update -y --security
-          yum install -y aws-cli aws-cfn-bootstrap awslogs jq
+            ##### INSTALL UPDATES AND TOOLS
+            yum update -y --security
+            yum install -y aws-cli aws-cfn-bootstrap awslogs jq
 
-          ##### ASSIGN ELASTIC IP
-          # Get the instance id from instance metadata
-          instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            ##### ASSIGN ELASTIC IP
+            # Get the instance id from instance metadata
+            instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Assign the elastic ip to this instance
-          aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
+            # Assign the elastic ip to this instance
+            aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
-          ##### SETUP INSTANCE LOGS
-          # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
-          sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
+            ##### SETUP INSTANCE LOGS
+            # Set the region to send CloudWatch Logs data to (the region where the container instance is located)
+            sed -i -e "s/region = us-east-1/region = ${AWS::Region}/g" /etc/awslogs/awscli.conf
 
-          # Inject the CloudWatch Logs configuration file contents
-          cat > /etc/awslogs/awslogs.conf <<- EOF
-          [general]
-          state_file = /var/lib/awslogs/agent-state
+            # Inject the CloudWatch Logs configuration file contents
+            cat > /etc/awslogs/awslogs.conf <<- EOF
+            [general]
+            state_file = /var/lib/awslogs/agent-state
 
-          [/var/log/messages]
-          file = /var/log/messages
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/messages
-          datetime_format = %b %d %H:%M:%S
+            [/var/log/messages]
+            file = /var/log/messages
+            log_group_name = ${InstancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/messages
+            datetime_format = %b %d %H:%M:%S
 
-          [/var/log/cfn-init.log]
-          file = /var/log/cfn-init.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cfn-init.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
+            [/var/log/cfn-init.log]
+            file = /var/log/cfn-init.log
+            log_group_name = ${InstancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cfn-init.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
 
-          [/var/log/cloud-init-output.log]
-          file = /var/log/cloud-init-output.log
-          log_group_name = ${InstancesLogGroup}
-          log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
-          datetime_format = %Y-%m-%dT%H:%M:%SZ
-          EOF
+            [/var/log/cloud-init-output.log]
+            file = /var/log/cloud-init-output.log
+            log_group_name = ${InstancesLogGroup}
+            log_stream_name = {container_instance_id}/var/log/cloud-init-output.log
+            datetime_format = %Y-%m-%dT%H:%M:%SZ
+            EOF
 
-          # Grab the container instance id from instance metadata
-          container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+            # Grab the container instance id from instance metadata
+            container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
-          # Replace the container instance ID placeholders with the actual values
-          sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
+            # Replace the container instance ID placeholders with the actual values
+            sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
 
-          # Start/Enable awslogs service
-          service awslogs start
-          chkconfig awslogs on
+            # Start/Enable awslogs service
+            service awslogs start
+            chkconfig awslogs on
 
-          ##### ECS CLUSTER CONFIG
-          # Update the cluster config with the cluster name
-          echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
+            ##### ECS CLUSTER CONFIG
+            # Update the cluster config with the cluster name
+            echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
 
-          ##### DB INIT
-          # Wait for postgres
-          export PGPASSWORD=${PgDbPassword}
-          while ! psql -h "${Database.Endpoint.Address}" -U "postgres" -p "5432" -c 'select 1' "postgres" &> /dev/null ; do
-            echo "Waiting for postgres to be available..."
-            sleep 5
-          done
-
-          # Check if stellar user and schemas have already been created. If not, create them.
-          export PGPASSWORD=${StellarDbPassword}
-          if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "5432" -c 'select 1' "core" && \
-             psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "5432" -c 'select 1' "horizon"
-          then
-            echo "User/Schema already exists"
-          else
-            echo "User/Schema does not exist. Creating."
+            ##### DB INIT
+            # Wait for postgres
             export PGPASSWORD=${PgDbPassword}
-            psql -h "${Database.Endpoint.Address}" -U "postgres" -p "5432" -v ON_ERROR_STOP=1 <<-EOSQL
-              CREATE USER ${StellarDbUsername} WITH PASSWORD '${StellarDbPassword}';
-              CREATE DATABASE core;
-              CREATE DATABASE horizon;
-              GRANT ALL PRIVILEGES ON DATABASE core TO ${StellarDbUsername};
-              GRANT ALL PRIVILEGES ON DATABASE horizon TO ${StellarDbUsername};
-          EOSQL
-            # Note. The lack of indentation above is required to properly close the heredoc
-          fi
+            while ! psql -h "${Database.Endpoint.Address}" -U "${superUser}" -p "${dbPort}" -c 'select 1' "${defaultSchema}" &> /dev/null ; do
+              echo "Waiting for postgres to be available..."
+              sleep 5
+            done
 
-          ##### SIGNAL ASG
-          # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+            # Check if stellar user and schemas have already been created. If not, create them.
+            export PGPASSWORD=${StellarDbPassword}
+            if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${coreSchema}" && \
+               psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${horizonSchema}"
+            then
+              echo "User/Schema already exists"
+            else
+              echo "User/Schema does not exist. Creating."
+              export PGPASSWORD=${PgDbPassword}
+              psql -h "${Database.Endpoint.Address}" -U "${superUser}" -p "${dbPort}" -v ON_ERROR_STOP=1 <<-EOSQL
+                CREATE USER ${StellarDbUsername} WITH PASSWORD '${StellarDbPassword}';
+                CREATE DATABASE ${coreSchema};
+                CREATE DATABASE ${horizonSchema};
+                GRANT ALL PRIVILEGES ON DATABASE ${coreSchema} TO ${StellarDbUsername};
+                GRANT ALL PRIVILEGES ON DATABASE ${horizonSchema} TO ${StellarDbUsername};
+            EOSQL
+              # Note. The lack of indentation above is required to properly close the heredoc
+            fi
+
+            ##### SIGNAL ASG
+            # Send a signal to the AutoScalingGroup with the return value of the last command to let it know creation completed
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
+
+          # The variables are substituted above in addition to other template resources and attributes like ${EcsCluster}
+          - superUser: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
+            dbPort: !FindInMap [CustomParamsMap, Get, DbPort]
+            defaultSchema: !FindInMap [CustomParamsMap, Get, DbDefaultSchemaName]
+            coreSchema: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
+            horizonSchema: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
 
   Ec2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
