@@ -239,7 +239,6 @@ Mappings:
     Get:
       DbSuperUserName: 'postgres'
       DbPort: 5432
-      DbDefaultSchemaName: 'postgres'
       DbCoreSchemaName: 'core'
       DbHorizonSchemaName: 'horizon'
       StellarHttpPort: 11626
@@ -478,6 +477,7 @@ Resources:
 
             ##### INSTALL TOOLS
             cloud-init-per once install_packages yum install -y aws-cli amazon-efs-utils aws-cfn-bootstrap awslogs jq
+            cloud-init-per once install_postgres yum install -y postgresql96 # separate line to make it obvious when diffing other templates
 
             ##### MOUNT EFS FILESYSTEM
             # Mount EFS using amazon-efs-utils and save exit code to be used later by cfn-signal
@@ -546,9 +546,9 @@ Resources:
             echo ECS_CLUSTER=${EcsCluster} >> /etc/ecs/ecs.config
 
             ##### DB INIT
-            # Wait for postgres
+            # Wait for postgres. Note pg_isready works without user/pass but including them avoids login errors in the server logs
             export PGPASSWORD=${PgDbPassword}
-            while ! psql -h "${Database.Endpoint.Address}" -U "${dbSuperUser}" -p "${dbPort}" -c 'select 1' "${dbDefaultSchema}" &> /dev/null ; do
+            while ! pg_isready -h "${Database.Endpoint.Address}"  -U "${dbSuperUser}" -p "${dbPort}" --quiet ; do
               echo "Waiting for postgres to be available..."
               sleep 5
             done
@@ -580,7 +580,6 @@ Resources:
           # The variables are substituted above in addition to other template resources and attributes like ${EcsCluster}
           - dbSuperUser: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
             dbPort: !FindInMap [CustomParamsMap, Get, DbPort]
-            dbDefaultSchema: !FindInMap [CustomParamsMap, Get, DbDefaultSchemaName]
             dbCoreSchema: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
             dbHorizonSchema: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
             efsInstanceMountPoint: !FindInMap [CustomParamsMap, Get, EfsInstanceMountPoint]
