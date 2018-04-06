@@ -6,14 +6,17 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Software"
-        Parameters: [StellarCoreVersion, HorizonVersion, PostgresVersion]
+          default: "Stellar"
+        Parameters: [StellarCoreVersion, HorizonVersion]
       - Label:
           default: "Instance"
         Parameters: [InstanceType, InstanceKeyPair]
       - Label:
           default: "Access"
         Parameters: [SshIpRange, HorizonIpRange, HorizonPort]
+      - Label:
+          default: "Database"
+        Parameters: [PostgresVersion]
 
     ParameterLabels:
       StellarCoreVersion:
@@ -342,10 +345,8 @@ Resources:
             yum install -y aws-cli aws-cfn-bootstrap awslogs jq
 
             ##### ASSIGN ELASTIC IP
-            # Get the instance id from instance metadata
+            # Get the instance id from instance metadata and assign the elastic ip to this instance
             instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-
-            # Assign the elastic ip to this instance
             aws ec2 associate-address --instance-id $instance_id --allocation-id ${EcsInstanceElasticIP.AllocationId} --region ${AWS::Region}
 
             ##### SETUP INSTANCE LOGS
@@ -376,10 +377,8 @@ Resources:
             datetime_format = %Y-%m-%dT%H:%M:%SZ
             EOF
 
-            # Grab the container instance id from instance metadata
+            # Get the instance id from instance metadata and replace the container instance ID placeholders with the actual values
             container_instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
-
-            # Replace the container instance ID placeholders with the actual values
             sed -i -e "s/{container_instance_id}/$container_instance_id/g" /etc/awslogs/awslogs.conf
 
             # Start/Enable awslogs service
@@ -544,7 +543,7 @@ Resources:
             - Name: DB_PORT
               Value: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: DATA_DIR
-              Value: '/data'
+              Value: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
 
             # Used by Horizon directly
             - Name: PORT # Horizon Port
@@ -581,7 +580,6 @@ Resources:
               Value: !FindInMap [HorizonConfigMap, Test, PerHourRateLimit]
             - Name: NETWORK_PASSPHRASE
               Value: !FindInMap [HorizonConfigMap, Test, NetworkPassphrase]
-
           LogConfiguration:
             LogDriver: awslogs
             Options:
