@@ -792,6 +792,9 @@ Resources:
           Essential: true
           Image: !Sub 'starformlabs/stellar-horizon:${HorizonVersion}'
           MemoryReservation: !FindInMap [MemoryReservationMap, !Ref 'InstanceType', horizon]
+          MountPoints:
+            - SourceVolume: efs-volume
+              ContainerPath: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
           PortMappings:
             - ContainerPort: !Ref HorizonPort
           Environment:
@@ -807,7 +810,7 @@ Resources:
             - Name: DB_PORT
               Value: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: DATA_DIR
-              Value: '/data'
+              Value: !FindInMap [CustomParamsMap, Get, ContainerDataDirectory]
 
             # Used by Horizon directly
             - Name: PORT # Horizon Port
@@ -844,7 +847,6 @@ Resources:
               Value: !FindInMap [HorizonConfigMap, Test, PerHourRateLimit]
             - Name: NETWORK_PASSPHRASE
               Value: !FindInMap [HorizonConfigMap, Test, NetworkPassphrase]
-
           LogConfiguration:
             LogDriver: awslogs
             Options:
