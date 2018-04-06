@@ -35,7 +35,7 @@ the following resources:
  - [A single EC2 instance](https://aws.amazon.com/ec2/pricing/on-demand/)
  - [Data transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
 
-Any potential charges for data transfer will likely minimal or covered by the free teir.
+Any potential charges for data transfer will likely minimal or covered by the free tier.
 
 **Disclaimer:** While we attempt to provide useful and up to date information, you are responsible for your own AWS 
 account and the resources that you are charged for. Always be vigilant about doubling checking to ensure that the 
