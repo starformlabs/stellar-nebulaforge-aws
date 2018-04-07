@@ -1,22 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Deploys Stellar Core and Horizon on a single EC2 server using ECS. RDS is used for Postgres.
+Description: Deploys Stellar Core and Horizon on a single EC2 server using ECS. RDS is used for Postgres and EFS for data
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Software"
-        Parameters: [StellarCoreVersion, HorizonVersion, PostgresVersion]
+          default: "Stellar"
+        Parameters: [StellarCoreVersion, HorizonVersion]
       - Label:
           default: "Instance"
         Parameters: [InstanceType, InstanceKeyPair]
       - Label:
           default: "Access"
-        Parameters: [SshIpRange, HorizonIpRange, HorizonPort, PeerPortIpRange]
+        Parameters: [SshIpRange, HorizonIpRange, HorizonPort]
       - Label:
           default: "Database"
-        Parameters: [PgDbPassword, StellarDbUsername, StellarDbPassword, DbInstanceType, DbStorage]
+        Parameters: [PostgresVersion, DbInstanceType, DbStorage]
 
     ParameterLabels:
       StellarCoreVersion:
@@ -31,18 +31,10 @@ Metadata:
         default: "Key Pair"
       SshIpRange:
         default: "IP Range for SSH Access"
-      PeerPortIpRange:
-        default: "IP Range for Peer Port Access"
       HorizonIpRange:
         default: "IP Range for Horizon Access"
       HorizonPort:
         default: "Horizon Port"
-      PgDbPassword:
-        default: "Superuser Password"
-      StellarDbUsername:
-        default: "Application Username"
-      StellarDbPassword:
-        default: "Application Password"
       DbInstanceType:
         default: "Instance Type"
       DbStorage:
@@ -99,61 +91,20 @@ Parameters:
     Type: Number
     Default: 8000
 
-  PeerPortIpRange:
-    Description: IP range (CIDR notation) that will be allowed to access the Stellar Core peer port. Leave blank to block all external access
-    Type: String
-    AllowedPattern: "^(([0-9]+\\.){3}[0-9]+/[0-9]{1,2})*$"
-    ConstraintDescription: "Must be a valid IP CIDR range of the form x.x.x.x/x."
-
-  PgDbPassword:
-    Description: Postgres superuser password (usernane is postgres). Alphanumeric characters only. Should be between 7 and 40 characters long
-    Type: String
-    MinLength: 7
-    MaxLength: 40
-    AllowedPattern: "[a-zA-Z0-9]*"
-    ConstraintDescription: Password must contain only alphanumeric characters. Should be between 7 and 40 characters long
-    NoEcho: true
-
-  StellarDbUsername:
-    Description: Postgres user that will used by Stellar Core and Horizon. Should be between 6 and 16 characters long. Alphanumeric only.
-    Type: String
-    MinLength: 6
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
-    Default: 'stellar'
-
-  StellarDbPassword:
-    Description: Alphanumeric characters only. Should be between 7 and 40 characters long
-    Type: String
-    MinLength: 7
-    MaxLength: 40
-    AllowedPattern: "[a-zA-Z0-9]*"
-    ConstraintDescription: Password must contain only alphanumeric characters. Should be between 7 and 40 characters long
-    NoEcho: true
-
   DbInstanceType:
     Default: db.t2.small
     Type: String
     ConstraintDescription: DB instance type not supported
     AllowedValues:
+      - db.t2.micro
       - db.t2.small
       - db.t2.medium
       - db.t2.large
       - db.t2.xlarge
-      - db.t2.2xlarge
       - db.m4.large
       - db.m4.xlarge
-      - db.m4.2xlarge
-      - db.m4.4xlarge
-      - db.m4.10xlarge
-      - db.m4.16xlarge
       - db.r4.large
       - db.r4.xlarge
-      - db.r4.2xlarge
-      - db.r4.4xlarge
-      - db.r4.8xlarge
-      - db.r4.16xlarge
 
   DbStorage:
     Type: Number
@@ -165,7 +116,6 @@ Parameters:
 
 Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
-  AllowPeerAccess: !Not [!Equals [ !Ref PeerPortIpRange, '' ]]
 
 Mappings:
   # Latest ECS optimized AMIs as of Apr 02 2018:
@@ -237,7 +187,8 @@ Mappings:
 
   CustomParamsMap:
     Get:
-      DbSuperUserName: 'postgres'
+      DbSuperUser: 'postgres'
+      DbAppUser: 'stellar'
       DbPort: 5432
       DbCoreSchemaName: 'core'
       DbHorizonSchemaName: 'horizon'
@@ -396,18 +347,6 @@ Resources:
           Value: !Sub '${AWS::StackName}-instances'
 
   # Specify this here instead of above so that we can use the "Condition" key
-  EcsSecurityGroupIngressCorePeerPort:
-    Type: AWS::EC2::SecurityGroupIngress
-    Condition: AllowPeerAccess
-    Properties:
-      GroupId: !Ref 'EcsHostSecurityGroup'
-      Description: Allow stellar core peer port access via a specific IP Range
-      CidrIp: !Ref PeerPortIpRange
-      IpProtocol: 'tcp'
-      FromPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
-      ToPort: !FindInMap [CustomParamsMap, Get, StellarPeerPort]
-
-  # Specify this here instead of above so that we can use the "Condition" key
   EcsSecurityGroupIngressHorizon:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: AllowHorizonAccess
@@ -547,27 +486,27 @@ Resources:
 
             ##### DB INIT
             # Wait for postgres. Note pg_isready works without user/pass but including them avoids login errors in the server logs
-            export PGPASSWORD=${PgDbPassword}
+            export PGPASSWORD=${DbSuperUserPassword.Password}
             while ! pg_isready -h "${Database.Endpoint.Address}"  -U "${dbSuperUser}" -p "${dbPort}" --quiet ; do
               echo "Waiting for postgres to be available..."
               sleep 5
             done
 
             # Check if stellar user and schemas have already been created. If not, create them.
-            export PGPASSWORD=${StellarDbPassword}
-            if psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${dbCoreSchema}" && \
-               psql -h "${Database.Endpoint.Address}" -U "${StellarDbUsername}" -p "${dbPort}" -c 'select 1' "${dbHorizonSchema}"
+            export PGPASSWORD=${DbAppPassword.Password}
+            if psql -h "${Database.Endpoint.Address}" -U "${dbAppUser}" -p "${dbPort}" -c 'select 1' "${dbCoreSchema}" && \
+               psql -h "${Database.Endpoint.Address}" -U "${dbAppUser}" -p "${dbPort}" -c 'select 1' "${dbHorizonSchema}"
             then
               echo "User/Schema already exists"
             else
               echo "User/Schema does not exist. Creating."
-              export PGPASSWORD=${PgDbPassword}
+              export PGPASSWORD=${DbSuperUserPassword.Password}
               psql -h "${Database.Endpoint.Address}" -U "${dbSuperUser}" -p "${dbPort}" -v ON_ERROR_STOP=1 <<-EOSQL
-                CREATE USER ${StellarDbUsername} WITH PASSWORD '${StellarDbPassword}';
+                CREATE USER ${dbAppUser} WITH PASSWORD '${DbAppPassword.Password}';
                 CREATE DATABASE ${dbCoreSchema};
                 CREATE DATABASE ${dbHorizonSchema};
-                GRANT ALL PRIVILEGES ON DATABASE ${dbCoreSchema} TO ${StellarDbUsername};
-                GRANT ALL PRIVILEGES ON DATABASE ${dbHorizonSchema} TO ${StellarDbUsername};
+                GRANT ALL PRIVILEGES ON DATABASE ${dbCoreSchema} TO ${dbAppUser};
+                GRANT ALL PRIVILEGES ON DATABASE ${dbHorizonSchema} TO ${dbAppUser};
             EOSQL
               # Note. The lack of indentation above is required to properly close the heredoc
             fi
@@ -578,7 +517,8 @@ Resources:
             /opt/aws/bin/cfn-signal -e $efs_exit_code --stack ${AWS::StackName} --resource EcsAutoScalingGroup --region ${AWS::Region}
 
           # The variables are substituted above in addition to other template resources and attributes like ${EcsCluster}
-          - dbSuperUser: !FindInMap [CustomParamsMap, Get, DbSuperUserName]
+          - dbSuperUser: !FindInMap [CustomParamsMap, Get, DbSuperUser]
+            dbAppUser: !FindInMap [CustomParamsMap, Get, DbAppUser]
             dbPort: !FindInMap [CustomParamsMap, Get, DbPort]
             dbCoreSchema: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
             dbHorizonSchema: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
@@ -695,8 +635,8 @@ Resources:
         - !Ref DatabaseSecurityGroup
       Engine: !FindInMap [CustomParamsMap, Get, RdsDbEngine]
       EngineVersion: !Ref PostgresVersion
-      MasterUsername: !FindInMap [CustomParamsMap, Get, DbSuperUserName] # Hardcoded to make sure users never accidentally wipe out their db by changing it
-      MasterUserPassword: !Ref PgDbPassword
+      MasterUsername: !FindInMap [CustomParamsMap, Get, DbSuperUser] # Hardcoded to make sure users never accidentally wipe out their db by changing it
+      MasterUserPassword: !GetAtt DbSuperUserPassword.Password
       DBInstanceClass: !Ref DbInstanceType
       AllocatedStorage: !Ref DbStorage
       StorageType: gp2
@@ -739,9 +679,9 @@ Resources:
           Environment:
             # Used by entry.sh
             - Name: DB_USER
-              Value: !Ref StellarDbUsername
+              Value: !FindInMap [CustomParamsMap, Get, DbAppUser]
             - Name: DB_PASS
-              Value: !Ref StellarDbPassword
+              Value: !GetAtt DbAppPassword.Password
             - Name: DB_NAME
               Value: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
             - Name: DB_HOST
@@ -759,8 +699,8 @@ Resources:
                   - db: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
                     host: !GetAtt Database.Endpoint.Address
                     port: !FindInMap [CustomParamsMap, Get, DbPort]
-                    user: !Ref StellarDbUsername
-                    pass: !Ref StellarDbPassword
+                    user: !FindInMap [CustomParamsMap, Get, DbAppUser]
+                    pass: !GetAtt DbAppPassword.Password
             - Name: NETWORK_PASSPHRASE
               Value: !FindInMap [StellarConfigMap, Test, NetworkPassphrase]
             - Name: KNOWN_PEERS
@@ -800,9 +740,9 @@ Resources:
           Environment:
             # Used by entry.sh
             - Name: DB_USER
-              Value: !Ref StellarDbUsername
+              Value: !FindInMap [CustomParamsMap, Get, DbAppUser]
             - Name: DB_PASS
-              Value: !Ref StellarDbPassword
+              Value: !GetAtt DbAppPassword.Password
             - Name: DB_NAME
               Value: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
             - Name: DB_HOST
@@ -820,8 +760,8 @@ Resources:
                 Fn::Sub:
                   - 'postgres://${user}:${pass}@${host}:${port}/${db}?sslmode=disable'
                   - db: !FindInMap [CustomParamsMap, Get, DbHorizonSchemaName]
-                    user: !Ref StellarDbUsername
-                    pass: !Ref StellarDbPassword
+                    user: !FindInMap [CustomParamsMap, Get, DbAppUser]
+                    pass: !GetAtt DbAppPassword.Password
                     host: !GetAtt Database.Endpoint.Address
                     port: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: STELLAR_CORE_DATABASE_URL
@@ -829,8 +769,8 @@ Resources:
                 Fn::Sub:
                   - 'postgres://${user}:${pass}@${host}:${port}/${db}?sslmode=disable'
                   - db: !FindInMap [CustomParamsMap, Get, DbCoreSchemaName]
-                    user: !Ref StellarDbUsername
-                    pass: !Ref StellarDbPassword
+                    user: !FindInMap [CustomParamsMap, Get, DbAppUser]
+                    pass: !GetAtt DbAppPassword.Password
                     host: !GetAtt Database.Endpoint.Address
                     port: !FindInMap [CustomParamsMap, Get, DbPort]
             - Name: STELLAR_CORE_URL
@@ -854,6 +794,131 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: !Ref 'AWS::StackName'
 
+  DbSuperUserPassword:
+    Type: 'AWS::CloudFormation::CustomResource'
+    Properties:
+      ServiceToken: !GetAtt PasswordGeneratorLambda.Arn
+      ParameterNamePrefix: !Sub '/${AWS::StackName}/database/master-password'
+
+  DbAppPassword:
+    Type: 'AWS::CloudFormation::CustomResource'
+    Properties:
+      ServiceToken: !GetAtt PasswordGeneratorLambda.Arn
+      ParameterNamePrefix: !Sub '/${AWS::StackName}/database/app-password'
+
+  PasswordGeneratorLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: 'Generates random password'
+      Handler: 'index.handler'
+      Role: !GetAtt PasswordGeneratorRole.Arn
+      Code:
+        ZipFile: |
+          const response = require('cfn-response');
+          const AWS = require('aws-sdk');
+          const ssm = new AWS.SSM();
+
+          exports.handler = (event, context) => {
+            if (event.RequestType == 'Delete') {
+              // Remove param when CloudFormation deletes the resource. The param name is the PhysicalResourceId
+              ssm.deleteParameter({ Name: event.PhysicalResourceId }).promise()
+                .then((data) => {
+                  return response.send(event, context, response.SUCCESS, data);
+              }).catch((err)=> {
+                  return response.send(event, context, response.FAILED, err);
+              });
+            }
+            else{ // Create or Update. Update (only happens when param name changes) will return a new physical id which will cause CF to delete the old one
+              let responseData;
+
+              new BackportedSecretsManager().getRandomPassword({ PasswordLength: 45, ExcludePunctuation: true }).promise()
+                .then((data) => {
+                  const password = data.RandomPassword.substring(0, 32); // We only really wanted 32 chars for the password
+                  const randomString = data.RandomPassword.substring(32); // Last 13 used to add randomness to the SSM param name to avoid deletion on replacement
+                  const paramName = event.ResourceProperties.ParameterNamePrefix + '-' + randomString;
+
+                  responseData = {
+                    ParameterName: paramName,
+                    EncodedParameterName: encodeURIComponent(encodeURIComponent(paramName)), // Double encoded to work with AWS console
+                    Password: password
+                  }
+
+                  const params = {
+                    Name: paramName,
+                    Type: 'SecureString',
+                    Value: password,
+                    Overwrite: true
+                  };
+                  return ssm.putParameter(params).promise();
+              }).then(() => {
+                  return response.send(event, context, response.SUCCESS, responseData, responseData.ParameterName); // Use param name as PhysicalResourceId
+              }).catch((err)=> {
+                  return response.send(event, context, response.FAILED, err);
+              });
+            }
+          };
+
+          // The Nodejs SDK currently available to Lambda doesn't yet support the Secrets Manager API
+          // This is the code from latest sdk required to support a minimal version of getRandomPassword() only
+
+          const BackportedSecretsManager = AWS.Service.defineService('secretsmanager', ['2017-10-17']);
+          AWS.apiLoader.services['secretsmanager'] = {};
+          Object.defineProperty(AWS.apiLoader.services['secretsmanager'], '2017-10-17', {
+            get: function get() { return secretsmanagerModel; }, enumerable: true, configurable: true
+          });
+
+          const secretsmanagerModel = {
+            version: '2.0',
+            metadata: {
+              apiVersion: '2017-10-17',
+              endpointPrefix: 'secretsmanager',
+              jsonVersion: '1.1',
+              protocol: 'json',
+              serviceFullName: 'AWS Secrets Manager',
+              serviceId: 'Secrets Manager',
+              signatureVersion: 'v4',
+              signingName: 'secretsmanager',
+              targetPrefix: 'secretsmanager',
+              uid: 'secretsmanager-2017-10-17'
+            },
+            operations: {
+              GetRandomPassword: {
+                input: { type: 'structure', members: { PasswordLength: { type: 'long' }, ExcludePunctuation: { type: 'boolean' } } },
+                output: { type: 'structure', members: { RandomPassword: {} } }
+              }
+            }
+          };
+      Runtime: 'nodejs6.10'
+      Timeout: '30'
+
+  PasswordGeneratorRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: '/'
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole']
+      Policies:
+        - PolicyName: 'GeneratePassword'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'secretsmanager:GetRandomPassword'
+                Resource: '*'
+        - PolicyName: 'CreateSsmParams'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['ssm:PutParameter', 'ssm:DeleteParameter', 'kms:Encrypt']
+                Resource: "*"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'lambda.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
   ContainersLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -873,6 +938,14 @@ Outputs:
   InstancesLogGroup:
     Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#logStream:group=/stellar/${AWS::StackName}-instances'
   AutoScalingGroup:
-      Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
+    Value: !Sub 'https://console.aws.amazon.com/ec2/autoscaling/home?region=${AWS::Region}#AutoScalingGroups:id=${EcsAutoScalingGroup};view=instances'
   ECS:
-      Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
+    Value: !Sub 'https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/${EcsCluster}/services/${EcsService.Name}/events'
+  DbSuperUser:
+    Value: !FindInMap [CustomParamsMap, Get, DbSuperUser]
+  DbSuperUserPassword:
+    Value: !Sub 'https://console.aws.amazon.com/systems-manager/parameters/${DbSuperUserPassword.EncodedParameterName}/description?region=${AWS::Region}'
+  DbAppUser:
+    Value: !FindInMap [CustomParamsMap, Get, DbAppUser]
+  DbAppPassword:
+    Value: !Sub 'https://console.aws.amazon.com/systems-manager/parameters/${DbAppPassword.EncodedParameterName}/description?region=${AWS::Region}'
