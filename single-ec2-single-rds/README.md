@@ -6,8 +6,8 @@ a VPC with one public subnet and two private subnets.
 
 Stellar-core and Horizon are all running in separate containers on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
 is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated, but 
-there is never more than one instance running at a time. **RDS** is being used to manage the database
-and **EFS** is being used as persistent storage. 
+there is never more than one instance running at a time. **[RDS](https://aws.amazon.com/rds/postgresql/)** is being used to manage the database
+and an **[EFS](https://aws.amazon.com/efs/)** backed volume is being used to store [local state](https://www.stellar.org/developers/stellar-core/software/admin.html#database-and-local-state). 
 
 
 ## Prerequisites
