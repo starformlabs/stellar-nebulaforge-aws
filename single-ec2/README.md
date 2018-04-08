@@ -39,12 +39,48 @@ not listed, just copy one of the URLs and edit the region accordingly.
 The template creates a number of resources but the majority of them do not attract charges. You *will* be billed for 
 the following resources:
  - [A single EC2 instance](https://aws.amazon.com/ec2/pricing/on-demand/)
- - [CloudWatch Logs](https://aws.amazon.com/cloudwatch/pricing/)
- - [Data transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
+ - [30GB of EBS gp2 storage](https://aws.amazon.com/ebs/pricing/)
+ - [Data Transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
 
-Any potential charges for data transfer will likely minimal or covered by the free tier.
+#### Pay was you go
+AWS Instances and EBS volumes are now billed per second (1 minute minimum) so you can run your instance for as
+long or little as you like. Estimated monthly and daily prices for entry level instances are below.
 
-**Disclaimer:** While we attempt to provide useful and up to date information, you are responsible for your own AWS 
+##### t2.nano (cheapest)
+ - EC2 Instance - $4.25
+ - EBS Storage - $3.00
+ - Data Transfer - $0.50
+ - **Total: $7.75/month | $0.26/day**
+ 
+##### t2.micro (default)
+ - EC2 Instance - $8.50
+ - EBS Storage - $3.00
+ - Data Transfer - $0.50
+ - **Total: $12/month | $0.40/day**
+
+#### Free Tier
+New AWS accounts are usually eligible for a [12 month free tier benefit](https://aws.amazon.com/free/?awsf.default=categories%2312monthsfree).
+If you are still eligible for the free tier and use the t2.micro instance type, your only cost will be bandwidth. **Note
+that t2.nano instances are NOT eligible for the free tier**.
+
+##### t2.micro with 12 month Free Tier
+ - EC2 Instance - $0.00
+ - EBS Storage - $0.00
+ - Data Transfer - $0.50
+ - **Total: $0.50/month | $0.02/day**
+
+#### Data Transfer
+Data Transfer pricing on AWS can be complex and usage patterns will vary from user to user. $0.50 per month is a baseline
+estimate for SCP traffic and basic interaction with horizon. If you plan to do high volume testing or make your
+horizon instance public be sure to keep an eye on the Data Transfer section of your bill.
+
+#### CloudWatch
+CloudWatch logging can also potentially attract charges, but it has a *permanent* free tier of 5GB ingested before
+charges apply. A full month of logs including consensus details on the test network is estimated to be less
+than 0.5GB of data.
+
+#### Disclaimer
+While we attempt to provide useful and up to date information, you are responsible for your own AWS 
 account and the resources that you are charged for. Always be vigilant about doubling checking to ensure that the 
 resources used are what your expect.
 <br />
