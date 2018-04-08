@@ -650,6 +650,7 @@ Resources:
       AllocatedStorage: !Ref DbStorage
       StorageType: gp2
       MultiAZ: false
+      AvailabilityZone: !GetAtt PublicSubnet.AvailabilityZone # Ensure that the DB is in the same AZ as the instance to avoid inter-AZ charges
       CopyTagsToSnapshot: true
       Tags:
       - Key: Name
