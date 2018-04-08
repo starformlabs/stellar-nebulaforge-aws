@@ -28,7 +28,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t2.micro
-    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
+    AllowedValues: [t2.nano, t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
     ConstraintDescription: Please choose a valid instance type.
 
   InstanceKeyPair:
@@ -99,9 +99,14 @@ Mappings:
     Get:
       DbPort: 5432
 
+  # These are all soft limits so they are not enforced or representative of per container usage
+  # These memory limits are effectively just being used to reserve the full capacity of the EC2 instance for the service
+  # 32MB is reserved for the ECS agent
   MemoryReservationMap:
+    t2.nano:
+      quickstart: 480
     t2.micro:
-      quickstart: 990 # Soft limit. Can't be the full 1024 because the instance and agent reserve some memory . About 992 is available by default
+      quickstart: 990
     t2.small:
       quickstart: 2000
     t2.medium:

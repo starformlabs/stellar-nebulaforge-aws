@@ -64,7 +64,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t2.micro
-    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
+    AllowedValues: [t2.nano, t2.micro, t2.small, t2.medium, t2.large, m4.large, m5.large, c4.large, c5.large]
     ConstraintDescription: Please choose a valid instance type.
 
   InstanceKeyPair:
@@ -199,7 +199,13 @@ Mappings:
       EfsInstanceMountPoint: '/mnt/efs'
       ContainerDataDirectory: '/data'
 
+  # These are all soft limits so they are not enforced or representative of per container usage
+  # These memory limits are effectively just being used to reserve the full capacity of the EC2 instance for the service
+  # 32MB is reserved for the ECS agent
   MemoryReservationMap:
+    t2.nano:
+      core: 240
+      horizon: 240
     t2.micro:
       core: 495
       horizon: 495
