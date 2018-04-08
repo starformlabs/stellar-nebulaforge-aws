@@ -385,6 +385,8 @@ Resources:
       MinSize: 1
       MaxSize: 2 # Allows capacity for AutoScalingReplacingUpdate
       DesiredCapacity: 1
+      MetricsCollection:
+        - Granularity: '1Minute'
       Tags:
         - Key: Name
           Value: !Ref 'AWS::StackName'
@@ -409,6 +411,7 @@ Resources:
       SecurityGroups: [!Ref 'EcsHostSecurityGroup']
       InstanceType: !Ref 'InstanceType'
       IamInstanceProfile: !Ref 'Ec2InstanceProfile'
+      InstanceMonitoring: false # Disable detailed monitoring at the instance level to avoid additional charges. ECS provides detailed CPU data
       KeyName: !Ref 'InstanceKeyPair'
       AssociatePublicIpAddress: 'true' # Will be replaced by elastic IP, but we need a public ip at the start to install packages
       UserData:
