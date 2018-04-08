@@ -92,7 +92,7 @@ Parameters:
     Default: 8000
 
   DbInstanceType:
-    Default: db.t2.small
+    Default: db.t2.micro
     Type: String
     ConstraintDescription: DB instance type not supported
     AllowedValues:
