@@ -1,4 +1,4 @@
-# NebulaForge single-ec2
+# SINGLE-EC2
 
 This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys a [trio of docker images](https://github.com/starformlabs/stellar-nebulaforge-aws/tree/master/docker-images) 
 running in a non-validating, ephemeral configuration connected to the test network. The deployment uses
@@ -8,9 +8,9 @@ Stellar-core, Horizon and PostgreSQL are all running in separate containers on t
 is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated, but 
 there is never more than one instance running at a time.
 
-**The main difference between this template and the quickstart is that we follow the best practice of splitting 
-Core, Horizon and PostgreSQL into separate containers, and that logs are automatically sent to AWS CloudWatch
-allowing user to review logs directly from a web browser. [More Details](#viewing-log-output)** 
+The main difference between this template and the quickstart is that we follow the best practice of splitting 
+Core, Horizon and PostgreSQL into **separate containers**, and that logs are automatically sent to AWS CloudWatch
+allowing user to [review detailed logs directly from a web browser](#viewing-log-output) .
 
 
 ## Prerequisites
@@ -42,36 +42,36 @@ the following resources:
  - [30GB of EBS gp2 storage](https://aws.amazon.com/ebs/pricing/)
  - [Data Transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
 
-#### Pay was you go
+### Pay was you go
 AWS Instances and EBS volumes are now billed per second (1 minute minimum) so you can run your instance for as
-long or little as you like. Estimated monthly and daily prices for entry level instances are below.
+long or little as you like. **Estimated** monthly and daily prices for entry level instances are below.
 
-##### t2.nano (cheapest)
+#### t2.nano (cheapest)
  - EC2 Instance - $4.25
  - EBS Storage - $3.00
  - Data Transfer - $0.50
- - **Total: $7.75/month | $0.26/day**
+ - Total: **$7.75**/month | **$0.26**/day
  
-##### t2.micro (default)
+#### t2.micro (default)
  - EC2 Instance - $8.50
  - EBS Storage - $3.00
  - Data Transfer - $0.50
- - **Total: $12/month | $0.40/day**
+ - Total: **$12**/month | **$0.40**/day
 
-#### Free Tier
+### Free Tier
 New AWS accounts are usually eligible for a [12 month free tier benefit](https://aws.amazon.com/free/?awsf.default=categories%2312monthsfree).
-If you are still eligible for the free tier and use the t2.micro instance type, your only cost will be bandwidth. **Note
-that t2.nano instances are NOT eligible for the free tier**.
+If you are still eligible for the free tier and use the t2.micro instance type, your only cost will be bandwidth. Note
+that **t2.nano** instances are **NOT eligible for the free tier**.
 
-##### t2.micro with 12 month Free Tier
+#### t2.micro with 12 month Free Tier
  - EC2 Instance - $0.00
  - EBS Storage - $0.00
  - Data Transfer - $0.50
- - **Total: $0.50/month | $0.02/day**
+ - Total: **$0.50**/month | **$0.02**/day
 
 #### Data Transfer
-Data Transfer pricing on AWS can be complex and usage patterns will vary from user to user. $0.50 per month is a baseline
-estimate for SCP traffic and basic interaction with horizon. If you plan to do high volume testing or make your
+Data Transfer pricing on AWS can be complex and usage patterns will vary from user to user. **$0.50 per month is a baseline
+estimate** for SCP traffic and basic interaction with horizon. If you plan to do high volume testing or make your
 horizon instance public be sure to keep an eye on the Data Transfer section of your bill.
 
 #### CloudWatch

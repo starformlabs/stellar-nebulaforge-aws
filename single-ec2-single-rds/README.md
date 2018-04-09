@@ -1,4 +1,4 @@
-# NebulaForge single-ec2-single-rds
+# SINGLE-EC2-SINGLE-RDS
 
 This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys a [pair of docker images](https://github.com/starformlabs/stellar-nebulaforge-aws/tree/master/docker-images) 
 running in a non-validating configuration connected to the test network. The deployment uses
@@ -41,32 +41,32 @@ the following resources:
  - [1GB of EFS data usage](https://aws.amazon.com/efs/pricing/)
  - [Data Transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
 
-#### Pay was you go
+### Pay was you go
 AWS Instances and EBS volumes are now billed per second (1 minute minimum) so you can run your instance for as
-long or little as you like. Estimated monthly and daily prices for entry level instances are below.
+long or little as you like. **Estimated** monthly and daily prices for entry level instances are below.
 
-##### t2.nano/db.t2.micro  (cheapest)
+#### t2.nano/db.t2.micro  (cheapest)
  - EC2 Instance - $4.25
  - EBS Storage - $3.00
  - RDS Instance - $13.20
  - RDS Storage - $2.30
  - EFS - $0.30
  - Data Transfer - $0.50
- - **Total: $23.55/month | $0.79/day**
+ - Total: **$23.55**/month | **$0.79**/day
  
-##### t2.micro/db.t2.micro (default)
+#### t2.micro/db.t2.micro (default)
  - EC2 Instance - $8.50
  - EBS Storage - $3.00
  - RDS Instance - $13.20
  - RDS Storage - $2.30
  - EFS - $0.30
  - Data Transfer - $0.50
- - **Total: $27.80/month | $0.93/day**
+ - Total: **$27.80**/month | **$0.93**/day
 
-#### Free Tier
+### Free Tier
 New AWS accounts are usually eligible for a [12 month free tier benefit](https://aws.amazon.com/free/?awsf.default=categories%2312monthsfree).
-If you are still eligible for the free tier and use the t2.micro instance type, your only cost will be bandwidth. **Note
-that t2.nano instances are NOT eligible for the free tier**.
+If you are still eligible for the free tier and use the t2.micro instance type, your only cost will be bandwidth. Note
+that **t2.nano** instances are **NOT eligible for the free tier**.
 
 ##### t2.micro/db.t2.micro with 12 month Free Tier
  - EC2 Instance - $0.00
@@ -75,11 +75,11 @@ that t2.nano instances are NOT eligible for the free tier**.
  - RDS Storage - $0.00
  - EFS - $0.00
  - Data Transfer - $0.50
- - **Total: $0.50/month | $0.02/day**
+ - Total: **$0.50**/month | **$0.02**/day
 
 #### Data Transfer
-Data Transfer pricing on AWS can be complex and usage patterns will vary from user to user. $0.50 per month is a baseline
-estimate for SCP traffic and basic interaction with horizon. If you plan to do high volume testing or make your
+Data Transfer pricing on AWS can be complex and usage patterns will vary from user to user. **$0.50 per month is a baseline
+estimate** for SCP traffic and basic interaction with horizon. If you plan to do high volume testing or make your
 horizon instance public be sure to keep an eye on the Data Transfer section of your bill.
 
 #### CloudWatch
