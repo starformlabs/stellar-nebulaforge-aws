@@ -42,7 +42,7 @@ the following resources:
  - [30GB of EBS gp2 storage](https://aws.amazon.com/ebs/pricing/)
  - [Data Transfer](https://aws.amazon.com/ec2/pricing/on-demand/#Data_Transfer)
 
-### Pay was you go
+### Pay as you go
 AWS Instances and EBS volumes are now billed per second (1 minute minimum) so you can run your instance for as
 long or little as you like. **Estimated** monthly and daily prices for entry level instances are below.
 
