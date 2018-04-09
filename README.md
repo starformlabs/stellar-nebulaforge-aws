@@ -15,9 +15,9 @@ filling out a few  parameters on a web interface.
 <br />
 
 ## Templates
-- [quickstart](quickstart/) - Deploys the well-known all-in-one [stellar/quickstart](https://github.com/stellar/docker-stellar-core-horizon) docker image running in one container on a single EC2 instance. 
-- [single-ec2](single-ec2/) - Deploys individual cloud-optimized docker images for [core, horizon and postgres](https://github.com/starformlabs/stellar-nebulaforge-aws/tree/master/docker-images) running in separate containers on the same EC2 instance. More inline with best practices for container deployment.
-- [single-ec2-single-rds](single-ec2-single-rds/) - Similar to single-ec2, but [RDS](https://aws.amazon.com/rds/postgresql/) is used to manage the database and an [EFS](https://aws.amazon.com/efs/) backed volume is used to store [local state](https://www.stellar.org/developers/stellar-core/software/admin.html#database-and-local-state). 
+- [quickstart](quickstart) - Deploys the well-known all-in-one [stellar/quickstart](https://github.com/stellar/docker-stellar-core-horizon) docker image running in one container on a single EC2 instance. 
+- [single-ec2](single-ec2) - Deploys individual cloud-optimized docker images for [core, horizon and postgres](docker-images) running in separate containers on the same EC2 instance. More inline with best practices for container deployment.
+- [single-ec2-single-rds](single-ec2-single-rds) - Similar to single-ec2, but [RDS](https://aws.amazon.com/rds/postgresql/) is used to manage the database and an [EFS](https://aws.amazon.com/efs/) backed volume is used to store [local state](https://www.stellar.org/developers/stellar-core/software/admin.html#database-and-local-state). 
 
 ## Roadmap
 - Retain data after stack deletion with the ability to resume.
