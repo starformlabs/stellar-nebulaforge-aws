@@ -4,11 +4,11 @@ This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys a
 running in a non-validating, ephemeral configuration connected to the test network. The deployment uses
 a single VPC subnet in a single availability zone.
 
-Stellar-core, Horizon and PostgreSQL are all running in separate containers on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
+Core, Horizon and PostgreSQL are all running in separate containers on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
 is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated, but 
 there is never more than one instance running at a time.
 
-The main difference between this template and the quickstart is that we follow the best practice of splitting 
+The main difference between this template and [quickstart](quickstart) is that we follow the best practice of splitting 
 Core, Horizon and PostgreSQL into **separate containers**, and that logs are automatically sent to AWS CloudWatch
 allowing user to [review detailed logs directly from a web browser](#viewing-log-output) .
 
@@ -34,6 +34,8 @@ not listed, just copy one of the URLs and edit the region accordingly.
 | EU (Frankfurt) | eu-central-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=stellar-single-ec2&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2/master.yaml)
 | Asia Pacific (Tokyo) | ap-northeast-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=stellar-single-ec2&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2/master.yaml)
 | Asia Pacific (Mumbai) | ap-south-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=stellar-single-ec2&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2/master.yaml)
+| Asia Pacific (Sydney) | ap-southeast-2 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/new?stackName=stellar-single-ec2&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2/master.yaml)
+
 
 ## Cost
 The template creates a number of resources but the majority of them do not attract charges. You *will* be billed for 
@@ -108,15 +110,8 @@ format.
 <br />
 
 ## Options and Review
-You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set.
-If you click the link for AWS Cost Explorer you can get an *estimate* of the monthly costs of running the resources to be
-deployed.
-
-![review](../quickstart/images/review-top.png)
-<br />
-<br />
-
-Be sure to select the acknowledgement at the end. It is basically confirming that you know that the template is
+You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set. 
+Be sure to **check the acknowledgement checkbox** at the end. It is to confirm that you know that the template is
 creating and IAM Role. Click the "Learn more" link in the warning box if you don't understand what that means.
 
 ![select the IAM resources checkbox](../quickstart/images/review-bottom.png)

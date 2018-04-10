@@ -30,6 +30,7 @@ not listed, just copy one of the URLs and edit the region accordingly.
 | EU (Frankfurt) | eu-central-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
 | Asia Pacific (Tokyo) | ap-northeast-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
 | Asia Pacific (Mumbai) | ap-south-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
+| Asia Pacific (Sydney) | ap-southeast-2 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/new?stackName=stellar-quickstart&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/quickstart/master.yaml)
 
 
 ## Cost
@@ -105,15 +106,8 @@ format.
 <br />
 
 ## Options and Review
-You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set.
-If you click the link for AWS Cost Explorer you can get an *estimate* of the monthly costs of running the resources to be
-deployed.
-
-![review](images/review-top.png)
-<br />
-<br />
-
-Be sure to select the acknowledgement at the end. It is basically confirming that you know that the template is
+You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set. 
+Be sure to **check the acknowledgement checkbox** at the end. It is to confirm that you know that the template is
 creating and IAM Role. Click the "Learn more" link in the warning box if you don't understand what that means.
 
 ![select the IAM resources checkbox](images/review-bottom.png)

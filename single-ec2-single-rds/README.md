@@ -1,10 +1,10 @@
 # SINGLE-EC2-SINGLE-RDS
 
-This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys a [pair of docker images](https://github.com/starformlabs/stellar-nebulaforge-aws/tree/master/docker-images) 
-running in a non-validating configuration connected to the test network. The deployment uses
-a VPC with one public subnet and two private subnets.
+This [CloudFormation](https://aws.amazon.com/cloudformation/) template deploys [docker images for core and horizon](https://github.com/starformlabs/stellar-nebulaforge-aws/tree/master/docker-images) 
+running in a non-validating configuration connected to the test network. The deployment uses a VPC with one public 
+subnet and two private subnets.
 
-Stellar-core and Horizon are all running in separate containers on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
+Core and Horizon are running in separate containers on the same EC2 instance. [AWS ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)
 is used to manage the container, and EC2 Autoscaling will replace the instance if it crashes or is terminated, but 
 there is never more than one instance running at a time. **[RDS](https://aws.amazon.com/rds/postgresql/)** is being used to manage the database
 and an **[EFS](https://aws.amazon.com/efs/)** backed volume is being used to store [local state](https://www.stellar.org/developers/stellar-core/software/admin.html#database-and-local-state). 
@@ -31,6 +31,8 @@ not listed, just copy one of the URLs and edit the region accordingly.
 | EU (Frankfurt) | eu-central-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=eu-central-1#/stacks/new?stackName=stellar-single-ec2-single-rds&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2-single-rds/master.yaml)
 | Asia Pacific (Tokyo) | ap-northeast-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/new?stackName=stellar-single-ec2-single-rds&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2-single-rds/master.yaml)
 | Asia Pacific (Mumbai) | ap-south-1 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-south-1#/stacks/new?stackName=stellar-single-ec2-single-rds&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2-single-rds/master.yaml)
+| Asia Pacific (Sydney) | ap-southeast-2 | [Launch Stack :rocket:](https://console.aws.amazon.com/cloudformation/home?region=ap-southeast-2#/stacks/new?stackName=stellar-single-ec2-single-rds&templateURL=https://s3.amazonaws.com/public.starformlabs.io/nebulaforge/aws/single-ec2-single-rds/master.yaml)
+
 
 ## Cost
 The template creates a number of resources but the majority of them do not attract charges. You *will* be billed for 
@@ -116,15 +118,8 @@ format.
 <br />
 
 ## Options and Review
-You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set.
-If you click the link for AWS Cost Explorer you can get an *estimate* of the monthly costs of running the resources to be
-deployed.
-
-![review](../quickstart/images/review-top.png)
-<br />
-<br />
-
-Be sure to select the acknowledgement at the end. It is basically confirming that you know that the template is
+You can **skip the options screen** entirely. On the review screen you can double check the parameters that you set. 
+Be sure to **check the acknowledgement checkbox** at the end. It is to confirm that you know that the template is
 creating and IAM Role. Click the "Learn more" link in the warning box if you don't understand what that means.
 
 ![select the IAM resources checkbox](../quickstart/images/review-bottom.png)
@@ -133,7 +128,7 @@ creating and IAM Role. Click the "Learn more" link in the warning box if you don
 
 ## In Progress
 
-It will take about 5 minutes for everything to be deloyed. You will see the resources being created in the events tab
+It will take about 15 minutes for everything to be deloyed. You will see the resources being created in the events tab
 
 ![create in progress](../quickstart/images/create-in-progress.png)
 <br />
