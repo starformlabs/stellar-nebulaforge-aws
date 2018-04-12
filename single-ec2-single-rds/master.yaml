@@ -201,7 +201,9 @@ Mappings:
 
   # These are all soft limits so they are not enforced or representative of per container usage
   # These memory limits are effectively just being used to reserve the full capacity of the EC2 instance for the service
-  # 32MB is reserved for the ECS agent
+  # A specific amount is reserved by each instance type for system usage. The full advertised amount is not available.
+  # You have to log into and instance and run "free -m" to determine what is available to that instance type.
+  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/memory-management.html
   MemoryReservationMap:
     t2.nano:
       core: 240
@@ -210,26 +212,26 @@ Mappings:
       core: 495
       horizon: 495
     t2.small:
-      core: 1000
-      horizon: 1000
+      core: 998
+      horizon: 998
     t2.medium:
-      core: 2000
-      horizon: 2000
+      core: 1973
+      horizon: 1973
     t2.large:
-      core: 4000
-      horizon: 4000
+      core: 3990
+      horizon: 3990
     m4.large:
-      core: 4000
-      horizon: 4000
+      core: 3990
+      horizon: 3990
     m5.large:
-      core: 4000
-      horizon: 4000
+      core: 3842
+      horizon: 3842
     c4.large:
-      core: 2000
-      horizon: 2000
+      core: 1880
+      horizon: 1880
     c5.large:
-      core: 2000
-      horizon: 2000
+      core: 1854
+      horizon: 1854
 
 
 Resources:
