@@ -9,14 +9,12 @@ jobs:
 
       - run:
           name: Install awscli
-          command: |
-            curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-            unzip awscli-bundle.zip
-            sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+          command: pip install awscli --upgrade --user
 
       - deploy:
           name: Copy templates to s3
           command: |
               aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
-                --exclude "docker-images/*" --exclude ".gitmodules" --exclude "LICENSE" --exclude "README.md" \
+                --exclude "*" --include "*.yaml" \
+                --content-type "text/plain"
                 --delete
