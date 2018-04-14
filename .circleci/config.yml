@@ -8,10 +8,6 @@ jobs:
       - checkout
 
       - run:
-          name: Install awscli dependencies
-          command: sudo apt-get install python-dev
-
-      - run:
           name: Install awscli
           command: |
             curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
@@ -22,6 +18,5 @@ jobs:
           name: Copy templates to s3
           command: |
               aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
-                --exclude "*" \
                 --exclude "docker-images/*" --exclude ".gitmodules" --exclude "LICENSE" --exclude "README.md" \
                 --delete
