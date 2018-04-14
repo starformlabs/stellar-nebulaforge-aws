@@ -7,6 +7,8 @@ jobs:
     steps:
       - checkout
 
+      # aws cli is installed to ~/.local and cached under a static key which currently matches the version
+      # If a newer version is needed, changing the key name will force a cache miss and a clean install
       - restore_cache:
           keys:
             - awscli-1.15.4
