@@ -7,14 +7,26 @@ jobs:
     steps:
       - checkout
 
+      - restore_cache:
+          keys:
+            - awscli-1.15.4
+
       - run:
-          name: Install awscli
-          command: pip install awscli --upgrade --user
+        name: Install awscli
+        command: |
+          if [ ! -f ~/.local/bin/aws ]; then
+            pip install awscli --upgrade --user
+          fi
+
+      - save_cache:
+          key: awscli-1.15.4
+          paths:
+            - "~/.local"
 
       - deploy:
-          name: Copy templates to s3
-          command: |
-              ~/.local/bin/aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
-                --exclude "*" --include "*.yaml" \
-                --content-type "text/plain" \
-                --delete
+        name: Copy templates to s3
+        command: |
+          ~/.local/bin/aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
+            --exclude "*" --include "*.yaml" \
+            --content-type "text/plain" \
+            --delete
