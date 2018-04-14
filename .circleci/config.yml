@@ -14,7 +14,7 @@ jobs:
       - deploy:
           name: Copy templates to s3
           command: |
-              aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
+              ~/.local/bin/aws s3 sync . s3://public.starformlabs.io/nebulaforge/aws/ \
                 --exclude "*" --include "*.yaml" \
-                --content-type "text/plain"
+                --content-type "text/plain" \
                 --delete
