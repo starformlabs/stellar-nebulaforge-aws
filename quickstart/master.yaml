@@ -60,7 +60,7 @@ Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
 
 Mappings:
-  # Latest ECS optimized AMIs as of Apr 02 2018:
+  # Latest ECS optimized AMIs as of Apr 04 2019:
   # amzn-ami-2017.09.k-amazon-ecs-optimized. ECS agent: 1.17.2, Docker: 17.12.0-ce, ecs-init: 1.17.2-1
   # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
   AwsRegionMap:
