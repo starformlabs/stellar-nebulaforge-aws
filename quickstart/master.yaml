@@ -60,40 +60,46 @@ Conditions:
   AllowHorizonAccess: !Not [!Equals [ !Ref HorizonIpRange, '' ]]
 
 Mappings:
-  # Latest ECS optimized AMIs as of Apr 02 2018:
+  # Latest ECS optimized AMIs as of Apr 04 2019:
   # amzn-ami-2017.09.k-amazon-ecs-optimized. ECS agent: 1.17.2, Docker: 17.12.0-ce, ecs-init: 1.17.2-1
   # You can find the latest available images here: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
   AwsRegionMap:
-    ap-northeast-1:
-      AMI: ami-5add893c
-    ap-northeast-2:
-      AMI: ami-ba74d8d4
-    ap-south-1:
-      AMI: ami-2149114e
-    ap-southeast-1:
-      AMI: ami-acbcefd0
-    ap-southeast-2:
-      AMI: ami-4cc5072e
-    ca-central-1:
-      AMI: ami-a535b2c1
-    eu-central-1:
-      AMI: ami-ac055447
-    eu-west-1:
-      AMI: ami-bfb5fec6
-    eu-west-2:
-      AMI: ami-a48d6bc3
-    eu-west-3:
-      AMI: ami-914afcec
-    sa-east-1:
-      AMI: ami-d3bce9bf
-    us-east-1:
-      AMI: ami-cb17d8b6
     us-east-2:
-      AMI: ami-1b90a67e
-    us-west-1:
-      AMI: ami-9cbbaffc
+        AMI: ami-0aa9ee1fc70e57450
+    us-east-1:
+        AMI: ami-007571470797b8ffa
     us-west-2:
-      AMI: ami-05b5277d
+        AMI: ami-0302f3ec240b9d23c
+    us-west-1:
+        AMI: ami-0935a5e8655c6d896
+    eu-west-3:
+        AMI: ami-0b419de35e061d9df
+    eu-west-2:
+        AMI: ami-0380c676fcff67fd5
+    eu-west-1:
+        AMI: ami-0b8e62ddc09226d0a
+    eu-central-1:
+        AMI: ami-01b63d839941375df
+    eu-north-1:
+        AMI: ami-03f8f3eb89dcfe553
+    ap-northeast-2:
+        AMI: ami-0c57dafd95a102862
+    ap-northeast-1:
+        AMI: ami-086ca990ae37efc1b
+    ap-southeast-2:
+        AMI: ami-0d28e5e0f13248294
+    ap-southeast-1:
+        AMI: ami-0627e2913cf6756ed
+    ca-central-1:
+        AMI: ami-0835b198c8a7aced4
+    ap-south-1:
+        AMI: ami-05de310b944d67cde
+    sa-east-1:
+        AMI: ami-09987452123fadc5b
+    us-gov-east-1:
+        AMI: ami-07dfc9cdc48d8649a
+    us-gov-west-1:
+        AMI: ami-914229f0
 
   CustomParamsMap:
     Get:
